@@ -1,0 +1,21 @@
+{
+  "name": "open-agent-office",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "corepack pnpm --parallel --filter './apps/*' dev",
+    "build": "corepack pnpm -r build",
+    "desktop": "corepack pnpm --filter @open-agent-office/office desktop:run",
+    "desktop:dev": "corepack pnpm --filter @open-agent-office/office desktop:dev",
+    "desktop:install": "./scripts/install-desktop.sh",
+    "desktop:uninstall": "./scripts/uninstall-desktop.sh",
+    "test:desktop": "corepack pnpm --filter @open-agent-office/office test:desktop",
+    "test:animations": "corepack pnpm --filter @open-agent-office/office test:animations",
+    "test": "corepack pnpm -r test",
+    "typecheck": "corepack pnpm -r typecheck"
+  }
+}

@@ -1,0 +1,24 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.vite/
+.turbo/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+data/*
+!data/.gitkeep
+references/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Local screenshots and generated artifacts
+/data/
+
+# Local backup files
+*.bak
