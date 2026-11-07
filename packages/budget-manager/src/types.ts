@@ -1,4 +1,5 @@
 export type BudgetStatus = "normal" | "warning" | "critical" | "blocked" | "unknown";
+export type ExpenseCategory = "money" | "subscription" | "free" | "local";
 
 export interface UsageMetrics {
   input: number;
@@ -82,6 +83,13 @@ export interface BudgetPolicyConfig {
   agentLimits: Record<string, AgentBudgetLimit>;
   /** IANA time zone that defines calendar-month boundaries. */
   accountingTimeZone: string;
+  /** User-configured subscription request ceiling; null means unknown/unset. */
+  subscriptionRequestLimit?: number | null;
+  /** User-configured approximate subscription context ceiling; null means unknown/unset. */
+  subscriptionContextTokensLimit?: number | null;
+  /** Optional explicit subscription accounting period. */
+  subscriptionPeriodStart?: string | null;
+  subscriptionPeriodEnd?: string | null;
 }
 
 export const DEFAULT_BUDGET_POLICY: BudgetPolicyConfig = {
@@ -98,6 +106,10 @@ export const DEFAULT_BUDGET_POLICY: BudgetPolicyConfig = {
   maxConcurrentTasks: null,
   agentLimits: {},
   accountingTimeZone: "UTC",
+  subscriptionRequestLimit: null,
+  subscriptionContextTokensLimit: null,
+  subscriptionPeriodStart: null,
+  subscriptionPeriodEnd: null,
 };
 
 export interface TaskBudgetRequest {
@@ -131,6 +143,18 @@ export interface BudgetSnapshot {
   reportedUsageUsd: number;
   monthlyUsage: UsageSummary;
   activeTaskCount: number;
+  /** Subscription usage is a policy projection, never an API balance. */
+  subscriptionUsage?: SubscriptionUsageSnapshot;
+}
+
+export interface SubscriptionUsageSnapshot {
+  readonly requestsUsed: number;
+  readonly requestLimit: number | null;
+  readonly approxContextTokensUsed: number;
+  readonly approxContextTokensLimit: number | null;
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly status: "available" | "warning" | "blocked" | "unknown";
 }
 
 export interface BudgetDecision {

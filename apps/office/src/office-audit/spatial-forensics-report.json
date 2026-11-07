@@ -1,0 +1,72 @@
+{
+  "gate": "MAO-GFX-12",
+  "status": "FAIL",
+  "implementationStatus": "SPATIAL QUALITY GATE READY",
+  "profile": "low",
+  "evidence": {
+    "glbBytes": 174968,
+    "nodes": 133,
+    "meshes": 106,
+    "primitives": 106,
+    "vertices": 2544,
+    "triangles": 1272,
+    "materials": 11,
+    "textures": 0,
+    "images": 0,
+    "lights": 0,
+    "logicalFloorMetres": [22, 14],
+    "renderedFloorMetres": [22, 9],
+    "configuredDprCap": 1.5,
+    "runtimeMeasured": false,
+    "hardwareWebglMeasured": false
+  },
+  "issues": [
+    {
+      "code": "GLB_UP_AXIS_METADATA_MISMATCH",
+      "severity": "FAIL",
+      "file": "apps/office/public/office-art/v1/manifest.json",
+      "asset": "office-pack.glb",
+      "explanation": "Manifest declares Y-up while floor geometry indicates Z-up.",
+      "recommendation": "Correct metadata or regenerate geometry, retaining exactly one integration-boundary conversion."
+    },
+    {
+      "code": "FLOOR_COVERAGE_MISMATCH",
+      "severity": "FAIL",
+      "file": "apps/office/src/office-3d/OfficeScene3D.tsx",
+      "asset": "floor.oak.light",
+      "explanation": "Local Z-up fit scaling produces a 22 by 9 metre floor for a 22 by 14 metre layout.",
+      "recommendation": "Normalize axes before fitting or map room depth to the source Y axis."
+    },
+    {
+      "code": "OBJECT_OFF_RENDERED_FLOOR",
+      "severity": "FAIL",
+      "file": "apps/office/src/office-3d/OfficeScene3D.tsx",
+      "asset": "plants and outer desk row",
+      "explanation": "Logical placements extend beyond the rendered floor depth.",
+      "recommendation": "Fix floor coverage before accepting object placement."
+    },
+    {
+      "code": "REFERENCE_SCALE_DISCONTINUITY",
+      "severity": "WARNING",
+      "file": "apps/office/src/office-3d/OfficeScene3D.tsx",
+      "asset": "desk.modern",
+      "explanation": "GLB desk footprint is substantially smaller than the established fallback composition.",
+      "recommendation": "Review export scale together with layout spacing and camera framing."
+    },
+    {
+      "code": "FLOOR_MATERIAL_QUALITY_REGRESSION",
+      "severity": "FAIL",
+      "file": "apps/office/src/office-3d/OfficeScene3D.tsx",
+      "asset": "floor material",
+      "explanation": "An untextured GLB floor replaces the textured fallback while external material textures are not loaded.",
+      "recommendation": "Bind materials.json textures or embed the reviewed laminate in the GLB."
+    },
+    {
+      "code": "RUNTIME_METRICS_NOT_CONNECTED",
+      "severity": "WARNING",
+      "file": "OfficeScene3D runtime",
+      "explanation": "Draw calls, DPR, memory, load latency, WebGL errors and lifecycle measurements are absent.",
+      "recommendation": "Connect RendererRuntimeMetrics and capture hardware WebGL evidence on Debian 13."
+    }
+  ]
+}

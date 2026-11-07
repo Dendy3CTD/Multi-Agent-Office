@@ -1,0 +1,42 @@
+{
+  "gate": "MAO-GFX-20",
+  "status": "WARNING",
+  "profile": "low",
+  "sections": {
+    "assets": "PASS",
+    "materials": "PASS",
+    "spatial": "PASS",
+    "performance": "WARNING",
+    "runtime": "WARNING"
+  },
+  "evidence": {
+    "coordinateSystem": "right-handed, Y-up, metres",
+    "floorMeters": [22, 14],
+    "desks": 12,
+    "chairs": 12,
+    "employees": 11,
+    "reservedDesks": 1,
+    "configuredDprCap": 1.5,
+    "runtimeMetricsMeasured": false,
+    "hardwareWebglMeasured": false,
+    "fpsMeasured": false
+  },
+  "issues": [
+    {
+      "code": "MODEL_FORWARD_AXIS_UNDECLARED",
+      "severity": "WARNING",
+      "category": "compatibility"
+    },
+    {
+      "code": "MODEL_BOUNDS_MISMATCH",
+      "severity": "WARNING",
+      "category": "spatial"
+    },
+    {
+      "code": "RUNTIME_METRICS_NOT_CONNECTED",
+      "severity": "WARNING",
+      "category": "performance"
+    }
+  ],
+  "visualAcceptance": "NOT MEASURED"
+}

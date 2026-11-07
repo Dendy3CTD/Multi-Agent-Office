@@ -1,0 +1,15 @@
+{
+  "floorTextured": true,
+  "bumpColorSpace": "",
+  "colorSpace": "srgb",
+  "exposure": 1,
+  "calls": 440,
+  "triangles": 171100,
+  "geometries": 121,
+  "textures": 12,
+  "shadowSize": [
+    1024,
+    1024
+  ],
+  "shadowCoversFloor": true
+}

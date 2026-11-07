@@ -1,0 +1,52 @@
+{
+  "gate": "MAO-GFX-20",
+  "status": "WARNING",
+  "implementationStatus": "QUALITY GATE SYNCHRONIZED",
+  "spatial": {
+    "floorMeters": [22, 14],
+    "desks": 12,
+    "chairs": 12,
+    "employees": 11,
+    "reservedDesks": 1,
+    "axis": "Y-up",
+    "status": "PASS",
+    "knownWarnings": ["MODEL_BOUNDS_MISMATCH"]
+  },
+  "artRuntime": {
+    "manifestNodesChecked": true,
+    "materialMappingsChecked": true,
+    "sharedRuntime": true,
+    "instanceDisposalChecked": true,
+    "status": "PASS"
+  },
+  "performance": {
+    "profile": "low",
+    "configuredDprCap": 1.5,
+    "offlineAssetMetrics": "AVAILABLE",
+    "runtimeMetrics": "NOT MEASURED",
+    "fps": "NOT MEASURED",
+    "hardwareWebgl": "NOT MEASURED",
+    "status": "WARNING"
+  },
+  "issues": [
+    {
+      "code": "MODEL_FORWARD_AXIS_UNDECLARED",
+      "severity": "WARNING",
+      "explanation": "The pack declares up axis but not model forward axis.",
+      "recommendation": "Declare the forward axis and verify an asymmetric model orientation."
+    },
+    {
+      "code": "RUNTIME_METRICS_NOT_CONNECTED",
+      "severity": "WARNING",
+      "explanation": "No measured browser runtime metrics were supplied.",
+      "recommendation": "Capture draw calls, DPR, load time and lifecycle counters on the target device."
+    },
+    {
+      "code": "MODEL_BOUNDS_MISMATCH",
+      "severity": "WARNING",
+      "explanation": "Measured character node bounds differ from manifest bounds.",
+      "recommendation": "Reconcile manifest character bounds with the exported GLB."
+    }
+  ],
+  "visualAcceptance": "NOT MEASURED"
+}

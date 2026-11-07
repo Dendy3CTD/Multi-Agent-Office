@@ -1,0 +1,101 @@
+{
+  "ready": true,
+  "stats": [
+    {
+      "id": "desk.modern",
+      "version": "before",
+      "calls": 17,
+      "triangles": 204
+    },
+    {
+      "id": "desk.modern",
+      "version": "after",
+      "calls": 14,
+      "triangles": 7768
+    },
+    {
+      "id": "chair.ergonomic",
+      "version": "before",
+      "calls": 9,
+      "triangles": 132
+    },
+    {
+      "id": "chair.ergonomic",
+      "version": "after",
+      "calls": 4,
+      "triangles": 2464
+    },
+    {
+      "id": "character.base.working",
+      "version": "before",
+      "calls": 19,
+      "triangles": 360
+    },
+    {
+      "id": "character.base.working",
+      "version": "after",
+      "calls": 11,
+      "triangles": 4884
+    },
+    {
+      "id": "sofa.cozy",
+      "version": "before",
+      "calls": 6,
+      "triangles": 72
+    },
+    {
+      "id": "sofa.cozy",
+      "version": "after",
+      "calls": 3,
+      "triangles": 1080
+    },
+    {
+      "id": "plant.potted",
+      "version": "before",
+      "calls": 3,
+      "triangles": 36
+    },
+    {
+      "id": "plant.potted",
+      "version": "after",
+      "calls": 3,
+      "triangles": 2016
+    },
+    {
+      "id": "window.frame",
+      "version": "before",
+      "calls": 4,
+      "triangles": 48
+    },
+    {
+      "id": "window.frame",
+      "version": "after",
+      "calls": 5,
+      "triangles": 1012
+    },
+    {
+      "id": "table.meeting",
+      "version": "before",
+      "calls": 5,
+      "triangles": 60
+    },
+    {
+      "id": "table.meeting",
+      "version": "after",
+      "calls": 4,
+      "triangles": 416
+    },
+    {
+      "id": "elevator.doors",
+      "version": "before",
+      "calls": 2,
+      "triangles": 24
+    },
+    {
+      "id": "elevator.doors",
+      "version": "after",
+      "calls": 4,
+      "triangles": 648
+    }
+  ]
+}

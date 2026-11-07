@@ -2,3 +2,8 @@ export * from "./errors.js";
 export * from "./agents.js";
 export * from "./agent-execution-coordinator.js";
 export * from "./factory.js";
+export * from "./runtime-manager.js";
+export * from "./portfolio-manager.js";
+export * from "./resource-allocator.js";
+export * from "./scheduler.js";
+export * from "./execution-coordinator.js";

@@ -30,6 +30,20 @@ export function assertNonNegativeNumber(field: string, value: unknown): number {
   return value;
 }
 
+export function assertBoolean(field: string, value: unknown): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") throw new TypeError(`${field} must be a boolean`);
+  return value;
+}
+
+export function assertOptionalStringIn<S extends string>(field: string, value: unknown, variants: readonly S[]): S | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !(variants as readonly string[]).includes(value)) {
+    throw new TypeError(`${field} must be one of: ${variants.join(", ")}`);
+  }
+  return value as S;
+}
+
 /** Returns the timestamp as normalized ISO UTC string; rejects anything that is not an ISO date-time. */
 export function normalizeTimestamp(field: string, value: unknown): string {
   if (typeof value !== "string" || !ISO_TIMESTAMP_PATTERN.test(value)) throw new TypeError(`${field} must be an ISO 8601 date-time with time zone`);

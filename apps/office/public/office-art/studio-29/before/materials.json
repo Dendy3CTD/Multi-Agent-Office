@@ -1,0 +1,366 @@
+{
+  "version": 2,
+  "units": "linear-srgb",
+  "colorSpace": "srgb",
+  "materials": {
+    "oak": {
+      "baseColorFactor": [
+        0.74,
+        0.62,
+        0.44,
+        1
+      ],
+      "roughness": 0.72,
+      "metallic": 0.02,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/oak-light.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "brick": {
+      "baseColorFactor": [
+        0.72,
+        0.46,
+        0.34,
+        1
+      ],
+      "roughness": 0.84,
+      "metallic": 0,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/brick-warm.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "wall": {
+      "baseColorFactor": [
+        0.86,
+        0.83,
+        0.76,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/cream-wall.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "metal": {
+      "baseColorFactor": [
+        0.14,
+        0.17,
+        0.18,
+        1
+      ],
+      "roughness": 0.34,
+      "metallic": 0.78
+    },
+    "bronze": {
+      "baseColorFactor": [
+        0.58,
+        0.37,
+        0.18,
+        1
+      ],
+      "roughness": 0.29,
+      "metallic": 0.82,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/bronze-brushed.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "glass": {
+      "baseColorFactor": [
+        0.66,
+        0.83,
+        0.85,
+        0.22
+      ],
+      "roughness": 0.14,
+      "metallic": 0.04,
+      "doubleSided": true,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/glass-tint.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "darkglass": {
+      "baseColorFactor": [
+        0.08,
+        0.15,
+        0.18,
+        0.92
+      ],
+      "roughness": 0.12,
+      "metallic": 0.18
+    },
+    "fabric": {
+      "baseColorFactor": [
+        0.38,
+        0.48,
+        0.42,
+        1
+      ],
+      "roughness": 0.94,
+      "metallic": 0,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/fabric-sage.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "fabric-blue": {
+      "baseColorFactor": [
+        0.25,
+        0.43,
+        0.48,
+        1
+      ],
+      "roughness": 0.92,
+      "metallic": 0,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/fabric-blue.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "carpet": {
+      "baseColorFactor": [
+        0.13,
+        0.16,
+        0.15,
+        1
+      ],
+      "roughness": 0.98,
+      "metallic": 0,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/carpet-woven.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    },
+    "leaf": {
+      "baseColorFactor": [
+        0.13,
+        0.3,
+        0.17,
+        1
+      ],
+      "roughness": 0.82,
+      "metallic": 0
+    },
+    "amber": {
+      "baseColorFactor": [
+        1,
+        0.52,
+        0.16,
+        1
+      ],
+      "roughness": 0.28,
+      "metallic": 0.08,
+      "emissiveFactor": [
+        0.8,
+        0.34,
+        0.08
+      ]
+    },
+    "skin": {
+      "baseColorFactor": [
+        0.72,
+        0.42,
+        0.27,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    "skin-deep": {
+      "baseColorFactor": [
+        0.32,
+        0.15,
+        0.085,
+        1
+      ],
+      "roughness": 0.86,
+      "metallic": 0
+    },
+    "skin-light": {
+      "baseColorFactor": [
+        0.88,
+        0.66,
+        0.48,
+        1
+      ],
+      "roughness": 0.88,
+      "metallic": 0
+    },
+    "hair": {
+      "baseColorFactor": [
+        0.055,
+        0.038,
+        0.028,
+        1
+      ],
+      "roughness": 0.82,
+      "metallic": 0
+    },
+    "shoe": {
+      "baseColorFactor": [
+        0.035,
+        0.045,
+        0.05,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.1
+    },
+    "ceramic": {
+      "baseColorFactor": [
+        0.72,
+        0.68,
+        0.58,
+        1
+      ],
+      "roughness": 0.42,
+      "metallic": 0.02,
+      "baseColorTexture": {
+        "url": "/office-art/v1/textures/ceramic-speckle.svg",
+        "colorSpace": "srgb",
+        "wrapS": "repeat",
+        "wrapT": "repeat",
+        "repeat": [
+          4,
+          4
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "material.floor.oak.light": {
+      "glbMaterialName": "oak",
+      "libraryKey": "oak",
+      "textureUrl": "/office-art/v1/textures/oak-light.svg"
+    },
+    "material.wall.brick": {
+      "glbMaterialName": "brick",
+      "libraryKey": "brick",
+      "textureUrl": "/office-art/v1/textures/brick-warm.svg"
+    },
+    "material.wall.painted": {
+      "glbMaterialName": "wall",
+      "libraryKey": "wall",
+      "textureUrl": "/office-art/v1/textures/cream-wall.svg"
+    },
+    "material.black.metal": {
+      "glbMaterialName": "metal",
+      "libraryKey": "metal"
+    },
+    "material.bronze": {
+      "glbMaterialName": "bronze",
+      "libraryKey": "bronze",
+      "textureUrl": "/office-art/v1/textures/bronze-brushed.svg"
+    },
+    "material.clear.glass": {
+      "glbMaterialName": "glass",
+      "libraryKey": "glass",
+      "textureUrl": "/office-art/v1/textures/glass-tint.svg"
+    },
+    "material.darkglass": {
+      "glbMaterialName": "darkglass",
+      "libraryKey": "darkglass"
+    },
+    "material.upholstery.fabric": {
+      "glbMaterialName": "fabric",
+      "libraryKey": "fabric",
+      "textureUrl": "/office-art/v1/textures/fabric-sage.svg"
+    },
+    "material.character.shirt": {
+      "glbMaterialName": "fabric-blue",
+      "libraryKey": "fabric-blue",
+      "textureUrl": "/office-art/v1/textures/fabric-blue.svg"
+    },
+    "material.carpet": {
+      "glbMaterialName": "carpet",
+      "libraryKey": "carpet",
+      "textureUrl": "/office-art/v1/textures/carpet-woven.svg"
+    },
+    "material.plant.leaf": {
+      "glbMaterialName": "leaf",
+      "libraryKey": "leaf"
+    },
+    "material.light.amber": {
+      "glbMaterialName": "amber",
+      "libraryKey": "amber"
+    },
+    "material.character.skin": {
+      "glbMaterialName": "skin",
+      "libraryKey": "skin"
+    },
+    "material.skin-deep": {
+      "glbMaterialName": "skin-deep",
+      "libraryKey": "skin-deep"
+    },
+    "material.skin-light": {
+      "glbMaterialName": "skin-light",
+      "libraryKey": "skin-light"
+    },
+    "material.hair": {
+      "glbMaterialName": "hair",
+      "libraryKey": "hair"
+    },
+    "material.shoe": {
+      "glbMaterialName": "shoe",
+      "libraryKey": "shoe"
+    },
+    "material.ceramic": {
+      "glbMaterialName": "ceramic",
+      "libraryKey": "ceramic",
+      "textureUrl": "/office-art/v1/textures/ceramic-speckle.svg"
+    }
+  }
+}

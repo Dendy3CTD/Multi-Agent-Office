@@ -11,6 +11,7 @@
     "baseUrl": ".",
     "paths": {
       "vitest": ["../../apps/office/node_modules/vitest"],
+      "@open-agent-office/shared": ["../shared/src/index.ts"],
       "@open-agent-office/budget-manager": ["../budget-manager/src/index.ts"],
       "@open-agent-office/runtime-opencode": ["../runtime-opencode/src/index.ts"]
     }

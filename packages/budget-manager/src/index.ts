@@ -6,3 +6,5 @@ export * from "./usage-ledger.js";
 export * from "./jsonl-store.js";
 export * from "./cash-payment-store.js";
 export * from "./budget-manager.js";
+export * from "./budget-guard.js";
+export * from "./slot-policy.js";

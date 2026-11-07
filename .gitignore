@@ -22,3 +22,6 @@ references/
 
 # Local backup files
 *.bak
+apps/office/src/office-3d/gfx*/screenshots/
+apps/office/src/office-3d/gfx*/*.log
+apps/office/src/office-3d/**/screenshots/

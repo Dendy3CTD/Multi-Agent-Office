@@ -1,0 +1,38 @@
+// GFX-29 authoring: X, depth, height in metres. No scene/employee state changes.
+const p=(id,size,material,translation=[0,0,0],kind='round',extra={})=>({id,size,material,translation,kind,extra})
+const rod=(id,a,b,r,m='metal')=>p(id,[r,1,r],m,[0,0,0],'rod',{between:[a,b]})
+const soft=(id,size,m,t)=>p(id,size,m,t,'cushion')
+export function studioParts(name, old) {
+ if(name==='chair.ergonomic')return [
+  soft('seat',[.55,.54,.13],'fabric',[0,-.015,.49]),p('curved-shell',[.5,.075,.66],'metal',[0,.24,.86],'shell'),p('woven-back',[.455,.025,.57],'fabric',[0,.193,.87],'shell'),soft('lumbar',[.4,.09,.16],'fabric',[0,.125,.72]),soft('headrest',[.31,.12,.14],'fabric',[0,.24,1.24]),
+  rod('headrest-stem',[0,.27,1.02],[0,.27,1.22],.018),p('tilt-mechanism',[.2,.25,.08],'metal',[0,0,.39]),rod('tilt-lever',[.08,0,.38],[.26,-.07,.38],.012),
+  ...[-1,1].flatMap(s=>[rod(`arm-brace-${s}`,[s*.2,.12,.4],[s*.26,.06,.72],.018),soft(`arm-pad-${s}`,[.085,.33,.045],'shoe',[s*.26,-.01,.73])]),
+  p('piston',[.026,.026,.22],'metal',[0,0,.15],'cylinder'),p('piston-boot',[.044,.044,.09],'shoe',[0,0,.3],'cylinder'),
+  ...Array.from({length:5},(_,i)=>{const a=i*Math.PI*2/5,x=Math.cos(a)*.29,z=Math.sin(a)*.29;return [rod(`spoke-${i}`,[0,0,.17],[x,z,.09],.022),...[-1,1].map(s=>p(`caster-${i}-${s}`,[.042,.022,.042],'shoe',[x+s*.022,z,.05],'wheel',{rotation:[0,a,0]}))]}).flat(),
+ ]
+ if(name==='desk.modern')return [p('beveled-top',[1.5,.72,.075],'oak',[0,0,.79],'deskTop'),...[-1,1].flatMap(s=>[rod(`front-leg-${s}`,[s*.63,-.25,.03],[s*.6,-.24,.745],.026),rod(`rear-leg-${s}`,[s*.63,.25,.03],[s*.6,.24,.745],.026),rod(`crossfoot-${s}`,[s*.63,-.27,.04],[s*.63,.27,.04],.026),p(`grommet-${s}`,[.026,.026,.006],'metal',[s*.5,.21,.834],'ring')]),rod('rear-brace',[-.6,.24,.68],[.6,.24,.68],.02),p('cable-basket',[.72,.13,.065],'metal',[0,.17,.65]),p('deskmat',[.64,.31,.008],'fabric-blue',[.05,-.16,.834]),p('cup',[.044,.044,.095],'ceramic',[-.59,.12,.834],'cup'),p('coffee',[.035,.035,.002],'bronze',[-.59,.12,.908],'cylinder'),p('document-stack',[.18,.24,.018],'wall',[-.5,-.14,.843]),p('document-cover',[.18,.24,.006],'fabric-clay',[-.5,-.14,.855]),p('pen-tray',[.14,.08,.025],'metal',[.54,.1,.845]),rod('pencil',[.49,.1,.866],[.59,.1,.866],.004,'oak')]
+ if(name==='monitor.single'||name==='monitor.dual')return [
+  ...Array.from({length:name==='monitor.dual'?2:1},(_,i)=>{const x=name==='monitor.dual'?(i-.5)*.64:0;return [p(`bezel-${i}`,[.64,.032,.4],'metal',[x,0,1.12]),p(`screen-${i}`,[.602,.005,.358],'darkglass',[x,-.019,1.12]),p(`sidebar-${i}`,[.07,.002,.30],'fabric-blue',[x-.245,-.023,1.12]),...Array.from({length:5},(_,j)=>p(`ui-${i}-${j}`,[.25+(j%2)*.1,.002,.008],'fabric-blue',[x+.01,-.024,1.24-j*.055],'box'))]}).flat(),p('foot',[.3,.22,.018],'metal',[0,0,.844]),rod('stand',[0,.025,.855],[0,.025,1.07],.021)]
+ if(name==='keyboard')return old.map(part=>part.id.startsWith('key-')?{...part,kind:'keycap'}:part)
+ if(name==='sofa.cozy')return [p('underframe',[2.02,.72,.12],'oak',[0,0,.22]),...[-1,1].flatMap(s=>[rod(`leg-front-${s}`,[s*.85,-.27,.02],[s*.85,-.27,.22],.025,'bronze'),rod(`leg-back-${s}`,[s*.85,.27,.02],[s*.85,.27,.22],.025,'bronze'),soft(`rolled-arm-${s}`,[.23,.8,.54],'fabric-forest',[s*1.01,0,.57])]),soft('back-shell',[2.05,.22,.65],'fabric-forest',[0,.3,.72]),...[-1,0,1].flatMap((s,i)=>[soft(`seat-cushion-${i}`,[.64,.64,.19],'fabric-forest',[s*.66,-.065,.45]),soft(`back-cushion-${i}`,[.62,.17,.43],'fabric-forest',[s*.66,.17,.78])]),soft('pillow-linen',[.37,.21,.36],'fabric',[.69,-.015,.72]),soft('pillow-clay',[.35,.21,.34],'fabric-clay',[-.7,-.01,.73]),p('linen-piping',[.35,.21,.34],'fabric-clay',[.69,-.015,.72],'piping'),p('clay-piping',[.33,.21,.32],'fabric',[-.7,-.01,.73],'piping')]
+ if(name==='armchair.cozy')return [p('shell',[.8,.12,.58],'fabric-clay',[0,.24,.69],'shell'),soft('back-cushion',[.84,.19,.65],'fabric-clay',[0,.18,.72]),soft('seat',[.76,.63,.18],'fabric-clay',[0,-.035,.43]),...[-1,1].flatMap(s=>[soft(`arm-${s}`,[.16,.66,.4],'fabric-clay',[s*.38,0,.56]),rod(`leg-f-${s}`,[s*.33,-.27,.03],[s*.29,-.23,.35],.027,'oak'),rod(`leg-b-${s}`,[s*.33,.27,.03],[s*.29,.23,.35],.027,'oak')]),soft('lumbar-pillow',[.48,.17,.26],'fabric',[0,.12,.65])]
+ if(name==='table.coffee')return [p('circular-top',[.58,.58,.07],'oak',[0,0,.43],'bevelDisc'),...Array.from({length:3},(_,i)=>{const a=i*Math.PI*2/3;return rod(`leg-${i}`,[Math.cos(a)*.4,Math.sin(a)*.4,.025],[Math.cos(a)*.28,Math.sin(a)*.28,.42],.032,'oak')}),p('book',[.23,.28,.035],'fabric-clay',[-.16,-.08,.486]),p('pages',[.22,.26,.022],'wall',[-.16,-.08,.49]),p('ceramic-bowl',[.09,.09,.065],'ceramic',[.23,.08,.47],'cup')]
+ if(name==='lamp.standing')return [p('base',[.23,.23,.035],'metal',[0,0,.02],'disc'),rod('pole',[0,0,.03],[0,0,1.83],.015,'bronze'),p('linen-shade',[.28,.20,.34],'wall',[0,0,1.69],'shade'),p('diffuser',[.26,.26,.008],'amber',[0,0,1.7],'disc')]
+ if(name==='pendant.led')return [rod('cable',[0,0,1.38],[0,0,2.3],.007),p('sculpted-shade',[.35,.14,.24],'bronze',[0,0,1.08],'shade'),p('diffuser',[.33,.33,.009],'amber',[0,0,1.09],'disc')]
+ if(name==='plant.potted')return old.map(part=>part.id==='planter'?{...part,kind:'ribbedPot'}:part.id.startsWith('leaf-')?{...part,kind:'leaf29'}:part)
+ if(name==='rug.area')return [p('woven',[2.8,1.8,.025],'carpet',[0,0,.015]),...[-1,1].flatMap(s=>Array.from({length:12},(_,i)=>rod(`fringe-${s}-${i}`,[-1.25+i*(2.5/11),s*.87,.024],[-1.25+i*(2.5/11),s*.96,.024],.006,'fabric')))]
+ if(name==='elevator.display')return [...old.filter(p=>p.id==='housing'),p('display-glass',[.31,.012,.15],'darkglass',[0,-1.063,2.77]),...digits02(0,-1.074,2.77,.048)]
+ if(name==='elevator.floor-sign')return [...old.filter(p=>p.id==='plate'),...digits02(0,-1.058,2.28,.044)]
+ if(name==='elevator.frame')return [...old,...[-1,1].map(s=>p(`outer-jamb-${s}`,[.14,.18,2.7],'metal',[s*1.32,-.92,1.35])),...[-1,1].flatMap(s=>[p(`graphite-flute-${s}`,[.085,.035,2.34],'metal',[s*1.16,-1.025,1.28]),p(`bronze-edge-${s}`,[.012,.014,2.34],'bronze',[s*1.2,-1.049,1.28])])]
+ if(name==='elevator.call-panel')return [...old,p('button-bezel',[.06,.06,.008],'bronze',[-1.38,-1.045,1.3],'ring',{rotation:[Math.PI/2,0,0]}),...[-1,1].map(s=>p(`screw-${s}`,[.008,.008,.008],'metal',[-1.38,-1.015,1.15+s*.23],'ellipsoid'))]
+ if(name==='chair.meeting')return old.map(part=>part.id==='back'?{...part,kind:'shell'}:part.id==='seat'?{...part,kind:'cushion'}:part)
+ if(name==='filing.cabinet')return [p('side-left',[.06,.65,1.25],'oak',[-.345,0,.625]),p('side-right',[.06,.65,1.25],'oak',[.345,0,.625]),p('top',[.75,.65,.045],'oak',[0,0,1.25]),p('back',[.65,.04,1.18],'oak',[0,.3,.62]),p('toe',[.64,.5,.09],'metal',[0,0,.065]),...Array.from({length:3},(_,i)=>[p(`drawer-${i}`,[.62,.05,.34],'oak',[0,-.31,.27+i*.37]),rod(`drawer-pull-${i}`,[-.1,-.365,.29+i*.37],[.1,-.365,.29+i*.37],.012,'bronze')]).flat()]
+ if(name==='bookshelf')return [...old,...Array.from({length:4},(_,i)=>p(`storage-${i}`,[.28,.27,.19],'fabric',[i%2? .31:-.31,0,.42+Math.floor(i/2)*1]))]
+ if(name==='door.office.glass')return [...old,p('kickplate',[.8,.012,.16],'bronze',[0,-.045,.15]),...[-1,1].map(s=>p(`hinge-${s}`,[.035,.05,.12],'bronze',[-.43,0,1.12+s*.7]))]
+ if(name==='window.frame')return [...old,p('oak-sill-apron',[2.45,.07,.09],'oak',[0,-.075,.58]),...[-1,1].map(s=>p(`bracket-${s}`,[.06,.18,.12],'metal',[s*.85,0,.56]))]
+ return old
+}
+function digits02(x,z,y,r) {
+ const patterns=['abcdef','abged'];const segments={a:[0,1],b:[.5,.5],c:[.5,-.5],d:[0,-1],e:[-.5,-.5],f:[-.5,.5],g:[0,0]}
+ return patterns.flatMap((pattern,i)=>[...pattern].map(segment=>{const [dx,dy]=segments[segment],horizontal='adg'.includes(segment);return p(`digit-${i}-${segment}`,[horizontal?r*.8:r*.16,.006,horizontal?r*.16:r*.8],'amber',[x-((i-.5)*r*1.5+dx*r),z,y+dy*r])}))
+}

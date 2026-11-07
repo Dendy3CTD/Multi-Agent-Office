@@ -1,0 +1,101 @@
+{
+  "ready": true,
+  "stats": [
+    {
+      "id": "desk.modern",
+      "version": "before",
+      "calls": 14,
+      "triangles": 7768
+    },
+    {
+      "id": "desk.modern",
+      "version": "after",
+      "calls": 15,
+      "triangles": 4740
+    },
+    {
+      "id": "chair.ergonomic",
+      "version": "before",
+      "calls": 4,
+      "triangles": 2464
+    },
+    {
+      "id": "chair.ergonomic",
+      "version": "after",
+      "calls": 3,
+      "triangles": 3268
+    },
+    {
+      "id": "armchair.cozy",
+      "version": "before",
+      "calls": 3,
+      "triangles": 864
+    },
+    {
+      "id": "armchair.cozy",
+      "version": "after",
+      "calls": 3,
+      "triangles": 1992
+    },
+    {
+      "id": "sofa.cozy",
+      "version": "before",
+      "calls": 3,
+      "triangles": 1080
+    },
+    {
+      "id": "sofa.cozy",
+      "version": "after",
+      "calls": 5,
+      "triangles": 4204
+    },
+    {
+      "id": "plant.potted",
+      "version": "before",
+      "calls": 3,
+      "triangles": 2016
+    },
+    {
+      "id": "plant.potted",
+      "version": "after",
+      "calls": 3,
+      "triangles": 2544
+    },
+    {
+      "id": "table.coffee",
+      "version": "before",
+      "calls": 4,
+      "triangles": 424
+    },
+    {
+      "id": "table.coffee",
+      "version": "after",
+      "calls": 4,
+      "triangles": 1168
+    },
+    {
+      "id": "lamp.standing",
+      "version": "before",
+      "calls": 3,
+      "triangles": 136
+    },
+    {
+      "id": "lamp.standing",
+      "version": "after",
+      "calls": 4,
+      "triangles": 552
+    },
+    {
+      "id": "elevator.display",
+      "version": "before",
+      "calls": 2,
+      "triangles": 216
+    },
+    {
+      "id": "elevator.display",
+      "version": "after",
+      "calls": 3,
+      "triangles": 1404
+    }
+  ]
+}

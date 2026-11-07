@@ -1,0 +1,46 @@
+[
+  {
+    "id": "opencode-go/beam-free",
+    "provider": "opencode-go",
+    "runtimeIds": ["opencode"],
+    "tier": "free",
+    "capabilities": ["text", "light"],
+    "relativeCost": 0,
+    "enabled": true,
+    "paidExternal": false,
+    "expenseCategory": "free"
+  },
+  {
+    "id": "opencode-go/mimo-v2.6-flash",
+    "provider": "opencode-go",
+    "runtimeIds": ["opencode"],
+    "tier": "cheap",
+    "capabilities": ["code", "reasoning"],
+    "relativeCost": 0,
+    "enabled": true,
+    "paidExternal": false,
+    "expenseCategory": "free"
+  },
+  {
+    "id": "opencode-go/glm-5.3-flash",
+    "provider": "opencode-go",
+    "runtimeIds": ["opencode"],
+    "tier": "cheap",
+    "capabilities": ["code"],
+    "relativeCost": 0,
+    "enabled": true,
+    "paidExternal": false,
+    "expenseCategory": "free"
+  },
+  {
+    "id": "opencode-go/qwen3.8-flash",
+    "provider": "opencode-go",
+    "runtimeIds": ["opencode"],
+    "tier": "cheap",
+    "capabilities": ["code", "reasoning"],
+    "relativeCost": 0,
+    "enabled": true,
+    "paidExternal": false,
+    "expenseCategory": "free"
+  }
+]

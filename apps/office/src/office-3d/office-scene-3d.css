@@ -1,0 +1,31 @@
+.office-scene-3d { min-height: 100vh; padding: 22px; color: #eee8de; background: #30363c; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.office-scene-3d-heading, .office-scene-3d-controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; max-width: 1280px; margin: 0 auto 12px; }
+.office-scene-3d-heading span { color: #d5a46b; font-size: 10px; font-weight: 900; letter-spacing: .16em; }
+.office-scene-3d-heading h1 { margin: 4px 0 0; font-size: clamp(20px, 3vw, 34px); letter-spacing: -.045em; }
+.office-scene-3d-heading small, .office-scene-3d-controls { color: #b4b9b7; font-size: 11px; }
+.office-scene-3d-mount { position: relative; max-width: 1280px; height: min(75vh, 760px); min-height: 500px; margin: 0 auto; overflow: hidden; border: 1px solid rgba(82,59,45,.2); border-radius: 18px; box-shadow: 0 28px 70px rgba(65,43,30,.25); background: #30363c; touch-action: none; cursor: grab; }
+.office-scene-3d-mount:active { cursor: grabbing; }
+.office-scene-3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; }
+.office-scene-3d-canvas.is-dragging { cursor: grabbing; }
+.office-scene-3d-controls { align-items: center; margin-top: 10px; }
+.office-scene-3d-controls button { padding: 8px 14px; border: 1px solid #a8846d; border-radius: 999px; color: #eee2ce; background: rgba(28,34,35,.9); cursor: pointer; }
+.office-scene-3d-mount .office-scene-3d-canvas.is-elevator-hover { cursor: pointer; }
+/* In the integrated tower the HUD owns the viewport height. */
+.mao-scene-viewport > .office-scene-3d { min-height: 0; height: 100%; padding: 0; background: transparent; }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-heading { position: absolute; z-index: 2; top: 18px; left: 22px; right: 22px; pointer-events: none; }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-heading h1 { color: #f7efe5; text-shadow: 0 2px 14px rgba(20,28,30,.55); }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-heading span, .mao-scene-viewport > .office-scene-3d .office-scene-3d-heading small { color: #e8c09b; }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-mount { max-width: none; height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-controls { position: absolute; z-index: 2; left: 22px; right: 22px; bottom: 18px; margin: 0; color: #eadccf; pointer-events: none; }
+.mao-scene-viewport > .office-scene-3d .office-scene-3d-controls button { pointer-events: auto; }
+@media (max-width: 700px) { .office-scene-3d { padding: 12px; } .office-scene-3d-heading { align-items: flex-start; flex-direction: column; } .office-scene-3d-mount { min-height: 430px; height: 68vh; } .office-scene-3d-controls { align-items: flex-start; flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .office-scene-3d-canvas { scroll-behavior: auto; } }
+
+/* Fix the 3D viewport to the visible area: intrinsic canvas size and a tall
+   right rail must not stretch the grid row and invalidate Fit Floor framing. */
+.mao-scene-viewport:has(> .office-scene-3d) { height: calc(100dvh - 74px); min-height: 0; align-self: start; }
+.mao-scene-viewport > .office-scene-3d { position: absolute; inset: 0; height: 100%; }
+@media (max-width: 720px) {
+  .mao-scene-viewport:has(> .office-scene-3d) { height: 66vh; }
+  .mao-office-ui.rail-collapsed .mao-scene-viewport:has(> .office-scene-3d) { height: calc(100dvh - 62px); }
+}

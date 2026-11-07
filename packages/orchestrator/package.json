@@ -12,10 +12,14 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "dependencies": {
     "@open-agent-office/budget-manager": "workspace:*",
-    "@open-agent-office/runtime-opencode": "workspace:*"
+    "@open-agent-office/runtime-opencode": "workspace:*",
+    "@open-agent-office/shared": "workspace:*"
   },
   "scripts": {
     "build": "../../apps/office/node_modules/.bin/tsc -p tsconfig.build.json",

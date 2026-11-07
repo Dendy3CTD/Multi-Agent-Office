@@ -4,8 +4,9 @@ import { mergeBudgetPolicy } from "./budget-policy.js";
 import { BudgetExceededError, BudgetStoreError, CashPaymentConflictError } from "./errors.js";
 import { usageEventId } from "./jsonl-store.js";
 import { UsageLedger } from "./usage-ledger.js";
+import { BudgetGuard, normalizeGuardRequest, subscriptionBlockReason, subscriptionPeriodFor, subscriptionUsageFromSummary, type BudgetGuardTaskRequest } from "./budget-guard.js";
 import type { BudgetDecision, BudgetPolicyConfig, BudgetSnapshot, CashPayment, CashPaymentStore, TaskBudgetRequest, TaskHandle, UsageEventInput, UsageRecord, UsageStore, UsageSummary } from "./types.js";
-import { normalizeCashPayment, normalizeTaskRequest, normalizeUsageInput, samePayment } from "./validation.js";
+import { normalizeCashPayment, normalizeUsageInput, samePayment } from "./validation.js";
 
 export interface BudgetManagerOptions {
   policy?: Partial<BudgetPolicyConfig>;
@@ -38,6 +39,7 @@ const isoNow = (): string => new Date().toISOString();
  */
 export class BudgetManager {
   readonly policy: BudgetPolicyConfig;
+  readonly guard: BudgetGuard;
   private readonly ledger = new UsageLedger();
   private readonly activeTasks = new Map<string, ActiveTask>();
   private readonly payments = new Map<string, CashPayment>();
@@ -49,7 +51,13 @@ export class BudgetManager {
   constructor(private readonly store: UsageStore, private readonly options: BudgetManagerOptions = {}) {
     this.policy = mergeBudgetPolicy(options.policy);
     this.clock = options.now ?? isoNow;
+    this.guard = new BudgetGuard(this);
   }
+
+  classify(request: BudgetGuardTaskRequest) { return this.guard.classify(request); }
+  async precheck(request: BudgetGuardTaskRequest) { return this.guard.precheck(request); }
+  async view() { return this.guard.view(); }
+  computeSlotPolicy(input: Parameters<BudgetGuard["computeSlots"]>[0]) { return this.guard.computeSlots(input); }
 
   /**
    * Loads the usage journal and, when configured, the payment journal.
@@ -143,8 +151,10 @@ export class BudgetManager {
   }
 
   /** Preview only: reports whether `startTask()` would currently succeed. Does not register the task. */
-  async checkTaskStart(request: TaskBudgetRequest): Promise<BudgetDecision> {
-    const normalized = normalizeTaskRequest(request);
+  async checkTaskStart(request: BudgetGuardTaskRequest): Promise<BudgetDecision> {
+    // Guard fields are validated like the rest: NaN estimates must not
+    // bypass subscription limits, an arbitrary category must not mask a provider.
+    const normalized = normalizeGuardRequest(request);
     await this.ensureUsageLoaded();
     await this.ensurePaymentsLoaded();
     const now = this.currentTime();
@@ -157,8 +167,8 @@ export class BudgetManager {
    * Atomically checks limits, active tasks and budget, then registers the task.
    * This is the only operation that reserves a concurrency slot.
    */
-  async startTask(request: TaskBudgetRequest): Promise<TaskHandle> {
-    const normalized = normalizeTaskRequest(request);
+  async startTask(request: BudgetGuardTaskRequest): Promise<TaskHandle> {
+    const normalized = normalizeGuardRequest(request);
     return this.admission.run(async () => {
       await this.ensureUsageLoaded();
       await this.ensurePaymentsLoaded();
@@ -254,7 +264,7 @@ export class BudgetManager {
     }
   }
 
-  private startBlockReason(request: TaskBudgetRequest, snapshot: BudgetSnapshot, now: string): string | undefined {
+  private startBlockReason(request: BudgetGuardTaskRequest, snapshot: BudgetSnapshot, now: string): string | undefined {
     if (request.startedAt !== undefined && Date.parse(request.startedAt) > Date.parse(now)) return "startedAt cannot be in the future";
     if (this.activeTasks.has(request.taskId)) return `Task ${request.taskId} is already active`;
     if (this.policy.maxConcurrentTasks !== null && this.activeTasks.size >= this.policy.maxConcurrentTasks) return "maximum concurrent tasks reached";
@@ -272,12 +282,14 @@ export class BudgetManager {
     const used = snapshot.monthlyUsage.byAgent[request.agentId];
     if (agentLimit?.maxReportedCostUsd != null && (used?.costUsd ?? 0) + (request.estimatedCostUsd ?? 0) > agentLimit.maxReportedCostUsd) return "agent monthly reported USD cost limit would be exceeded";
     if (agentLimit?.maxTotalTokens != null && (used?.total ?? 0) + (request.estimatedTotalTokens ?? 0) > agentLimit.maxTotalTokens) return "agent monthly token limit would be exceeded";
-    return undefined;
+    return subscriptionBlockReason(request, snapshot, this.policy);
   }
 
   private buildSnapshot(now: string): BudgetSnapshot {
     const period = this.currentPeriod(now);
     const monthlyUsage = this.ledger.summarize({ from: period.from, to: period.to });
+    const subscriptionPeriod = subscriptionPeriodFor(this.policy, now);
+    const subscriptionSummary = this.ledger.summarize({ from: subscriptionPeriod.from, to: subscriptionPeriod.to });
     const currentPayments = [...this.payments.values()].filter((payment) => this.inPeriod(payment.timestamp, period));
     const extraSpendRub = currentPayments.reduce((sum, payment) => sum + payment.amountRub, 0);
     const subscriptionCostRub = this.policy.subscriptionCostRub;
@@ -295,6 +307,7 @@ export class BudgetManager {
       reportedUsageUsd: monthlyUsage.costUsd,
       monthlyUsage,
       activeTaskCount: this.activeTasks.size,
+      subscriptionUsage: subscriptionUsageFromSummary(subscriptionSummary, this.policy, subscriptionPeriod),
     };
   }
 
@@ -311,6 +324,10 @@ export class BudgetManager {
     const value = this.clock();
     if (!Number.isFinite(Date.parse(value))) throw new TypeError("budget clock must return a valid ISO timestamp");
     return value;
+  }
+
+  getCurrentTime(): string {
+    return this.currentTime();
   }
 
   private ensureUsageLoaded(): Promise<void> {

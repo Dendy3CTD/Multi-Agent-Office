@@ -13,6 +13,9 @@
     }
   },
   "files": ["dist", "README.md"],
+  "dependencies": {
+    "@open-agent-office/shared": "workspace:*"
+  },
   "scripts": {
     "build": "../../apps/office/node_modules/.bin/tsc -p tsconfig.build.json",
     "typecheck": "../../apps/office/node_modules/.bin/tsc --noEmit -p tsconfig.json",

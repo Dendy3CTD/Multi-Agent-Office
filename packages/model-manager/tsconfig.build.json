@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@open-agent-office/shared": ["../shared/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["dist", "test"]
+}

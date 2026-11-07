@@ -1,0 +1,6 @@
+import type { OfficeFloor } from '../types'
+import { floorSummary } from '../view-model'
+
+export default function ElevatorMenu({ floors, activeFloorId, onFloorSelect }: { floors: readonly OfficeFloor[]; activeFloorId: string; onFloorSelect: (floorId: string) => void }) {
+  return <div className="mao-floor-menu" id="mao-floor-menu" aria-label="Этажи башни"><div className="mao-floor-menu-head"><span>ЭТАЖИ БАШНИ</span><small>15 уровней</small></div><div className="mao-floor-list">{[...floors].sort((a, b) => b.number - a.number).map(floor => <button type="button" key={floor.id} className={`mao-floor-row ${floor.id === activeFloorId ? 'is-active' : ''}`} aria-current={floor.id === activeFloorId ? 'true' : undefined} onClick={() => onFloorSelect(floor.id)}><span className="mao-floor-number">{String(floor.number).padStart(2, '0')}</span><span className="mao-floor-icon" aria-hidden="true">{floor.icon ?? (floor.kind === 'department' ? '·' : '⌂')}</span><span className="mao-floor-copy"><strong>{floor.name}</strong><small>{floorSummary(floor)} · {floor.occupiedSeats}/{floor.employeeCount || floor.occupiedSeats + floor.availableSeats} мест занято</small></span><span className={`mao-floor-state state-${floor.state}`} title={floor.state} /></button>)}</div></div>
+}

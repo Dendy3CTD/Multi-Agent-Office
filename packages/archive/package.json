@@ -1,0 +1,21 @@
+{
+  "name": "@open-agent-office/archive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "../../apps/office/node_modules/.bin/tsc -p tsconfig.build.json",
+    "typecheck": "../../apps/office/node_modules/.bin/tsc --noEmit -p tsconfig.json",
+    "test": "../../apps/office/node_modules/.bin/vitest run --cache=false"
+  }
+}

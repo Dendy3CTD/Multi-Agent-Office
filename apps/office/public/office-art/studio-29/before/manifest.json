@@ -1,0 +1,1495 @@
+{
+  "schemaVersion": 1,
+  "packId": "mao-office-art-v2",
+  "coordinateSystem": "right-handed, Y-up, metres",
+  "defaultScale": 1,
+  "assets": [
+    {
+      "id": "floor.oak.light",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "floor.oak.light",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "bottom-center",
+      "bounds": [
+        12,
+        0.11999999731779099,
+        9
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "wall.brick.loft",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "wall.brick.loft",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "bottom-center",
+      "bounds": [
+        12,
+        3.5,
+        0.2800000011920929
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "wall.painted",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "wall.painted",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "bottom-center",
+      "bounds": [
+        12,
+        3.5,
+        0.26000000536441803
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "desk.modern",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "desk.modern",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        1.5,
+        0.9225000073201954,
+        0.7200000286102295
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "light-oak",
+        "graphite"
+      ]
+    },
+    {
+      "id": "chair.ergonomic",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "chair.ergonomic",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6200000047683716,
+        1.227500006556511,
+        0.6166127920150757
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "graphite",
+        "sage"
+      ]
+    },
+    {
+      "id": "monitor.single",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "monitor.single",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "desk-top",
+      "bounds": [
+        0.6399999856948853,
+        0.5225000381469727,
+        0.18000000715255737
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "monitor.dual",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "monitor.dual",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "desk-top",
+      "bounds": [
+        1.2200000286102295,
+        0.5125000476837158,
+        0.18000000715255737
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "keyboard",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "keyboard",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "desk-top",
+      "bounds": [
+        0.6425000131130219,
+        0.053000032901763916,
+        0.20000000298023224
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "desk.lamp",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "desk.lamp",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "desk-top",
+      "bounds": [
+        0.23999999463558197,
+        0.4599999785423279,
+        0.32114171236753464
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "bookshelf",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "bookshelf",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        1.3049999475479126,
+        2.099999856948852,
+        0.35249999165534973
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "filing.cabinet",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "filing.cabinet",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.75,
+        1.25,
+        0.7069999873638153
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "table.meeting",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "table.meeting",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.799999952316284,
+        0.787715588696301,
+        1.2000000476837158
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "chair.meeting",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "chair.meeting",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.47999998927116394,
+        1.00188004411757,
+        0.48999999463558197
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "sofa.cozy",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "sofa.cozy",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.299999952316284,
+        0.9449999630451202,
+        0.7950000166893005
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "table.coffee",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "table.coffee",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        1.100000023841858,
+        0.5946625750511885,
+        0.6499999761581421
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "lamp.standing",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "lamp.standing",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.5199999809265137,
+        2.1300000958144665,
+        0.5199999809265137
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "plant.potted",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "plant.potted",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.8746788203716278,
+        1.5634843051433562,
+        0.7867529690265656
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "rug.area",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "rug.area",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "bottom-center",
+      "bounds": [
+        2.799999952316284,
+        0.02900000079534948,
+        1.7999999523162842
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "armchair.cozy",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "armchair.cozy",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        1,
+        0.9449999630451202,
+        0.7950000166893005
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "pendant.led",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "pendant.led",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.699999988079071,
+        1.1999999284744263,
+        0.699999988079071
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "wall.decoration",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "wall.decoration",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "wall-center",
+      "bounds": [
+        0.8999999761581421,
+        0.6499999761581421,
+        0.11749999783933163
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "partition.glass",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "partition.glass",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.4800000190734863,
+        2.309999965131283,
+        0.13000000268220901
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "window.frame",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "window.frame",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "wall-center",
+      "bounds": [
+        2.549999952316284,
+        1.7299999594688416,
+        0.3199999928474426
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.idle",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.idle",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "character.base.idle",
+        "character.base.idle.variant-1",
+        "character.base.idle.variant-2"
+      ]
+    },
+    {
+      "id": "character.base.idle.variant-1",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.idle.variant-1",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.idle.variant-2",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.idle.variant-2",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.working",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.working",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "character.base.working",
+        "character.base.working.variant-1",
+        "character.base.working.variant-2"
+      ]
+    },
+    {
+      "id": "character.base.working.variant-1",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.working.variant-1",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.working.variant-2",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.working.variant-2",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.selected",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.selected",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "character.base.selected",
+        "character.base.selected.variant-1",
+        "character.base.selected.variant-2"
+      ]
+    },
+    {
+      "id": "character.base.selected.variant-1",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.selected.variant-1",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.selected.variant-2",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.selected.variant-2",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.blocked",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.blocked",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry",
+      "variants": [
+        "character.base.blocked",
+        "character.base.blocked.variant-1",
+        "character.base.blocked.variant-2"
+      ]
+    },
+    {
+      "id": "character.base.blocked.variant-1",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.blocked.variant-1",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base.blocked.variant-2",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.blocked.variant-2",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7549999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "character.base",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "character.base.idle",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.6870108842849731,
+        1.5900000054389238,
+        0.7000000029802322
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-21 procedural geometry",
+      "variants": [
+        "character.base.idle",
+        "character.base.working",
+        "character.base.selected",
+        "character.base.blocked"
+      ]
+    },
+    {
+      "id": "preview.workstation",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "preview.workstation",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        1.5,
+        0.820000022649765,
+        1.2850000262260437
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "preview.office.group",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "preview.office.group",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        3.5,
+        0.09999996423721313,
+        2.0199999809265137
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "preview.meeting.room",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "preview.meeting.room",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        3.5,
+        2.400000143051148,
+        1.6299999952316284
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.cabin",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.cabin",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.200000047683716,
+        2.6800000658631324,
+        1.7999999523162842
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.frame",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.frame",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.5,
+        2.635000081267208,
+        0.20050007104873657
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.doors",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.doors",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.1600000429153443,
+        2.380000114440918,
+        0.08399999886751175
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.display",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.display",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "wall-center",
+      "bounds": [
+        0.41999998688697815,
+        0.2200000286102295,
+        0.0625
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.call-panel",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.call-panel",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "wall-center",
+      "bounds": [
+        0.2999999523162842,
+        0.6000000834465027,
+        0.08250004053115845
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.floor-sign",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.floor-sign",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "wall-center",
+      "bounds": [
+        0.6000000238418579,
+        0.2200000286102295,
+        0.05750000476837158
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "elevator.wall-lights",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "elevator.wall-lights",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        2.619999885559082,
+        1.800000011920929,
+        0.05000000074505806
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "door.office.glass",
+      "url": "/office-art/v1/office-pack.glb",
+      "node": "door.office.glass",
+      "type": "model",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "floor-center",
+      "bounds": [
+        0.9649999737739563,
+        2.2725000381469727,
+        0.13749999925494194
+      ],
+      "license": "Project-owned",
+      "source": "MAO-GFX-28 authored procedural geometry"
+    },
+    {
+      "id": "material.floor.oak.light",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.wall.brick",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.wall.painted",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.black.metal",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.bronze",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.clear.glass",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.darkglass",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.upholstery.fabric",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.character.shirt",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.carpet",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.plant.leaf",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.light.amber",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.character.skin",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.skin-deep",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.skin-light",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.hair",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.shoe",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "material.ceramic",
+      "url": "/office-art/v1/materials.json",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local PBR material library"
+    },
+    {
+      "id": "texture.oak.light",
+      "url": "/office-art/v1/textures/oak-light.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.wall.brick.warm",
+      "url": "/office-art/v1/textures/brick-warm.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.wall",
+      "url": "/office-art/v1/textures/cream-wall.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.bronze",
+      "url": "/office-art/v1/textures/bronze-brushed.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.glass",
+      "url": "/office-art/v1/textures/glass-tint.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.fabric.sage",
+      "url": "/office-art/v1/textures/fabric-sage.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.fabric.blue",
+      "url": "/office-art/v1/textures/fabric-blue.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.carpet.charcoal",
+      "url": "/office-art/v1/textures/carpet-woven.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    },
+    {
+      "id": "texture.ceramic",
+      "url": "/office-art/v1/textures/ceramic-speckle.svg",
+      "type": "material",
+      "scale": 1,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "anchor": "surface",
+      "bounds": [
+        0,
+        0,
+        0
+      ],
+      "license": "Project-owned",
+      "source": "Local procedural SVG texture"
+    }
+  ]
+}

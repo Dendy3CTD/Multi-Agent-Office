@@ -1,0 +1,24 @@
+{
+  "name": "@open-agent-office/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@open-agent-office/shared": "workspace:*",
+    "@open-agent-office/orchestrator": "workspace:*",
+    "@open-agent-office/directory": "workspace:*",
+    "@open-agent-office/model-manager": "workspace:*",
+    "@open-agent-office/budget-manager": "workspace:*",
+    "@open-agent-office/archive": "workspace:*",
+    "@open-agent-office/runtime-codex": "workspace:*",
+    "@open-agent-office/runtime-opencode": "workspace:*"
+  },
+  "scripts": {
+    "build": "../../apps/office/node_modules/.bin/tsc -p tsconfig.build.json",
+    "typecheck": "../../apps/office/node_modules/.bin/tsc --noEmit -p tsconfig.json",
+    "test": "../../apps/office/node_modules/.bin/vitest run --cache=false",
+    "start": "node dist/start.js"
+  }
+}

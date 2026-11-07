@@ -1,0 +1,14 @@
+{
+  "name": "@open-agent-office/directory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": { "@open-agent-office/shared": "workspace:*" },
+  "scripts": {
+    "build": "../../apps/office/node_modules/.bin/tsc -p tsconfig.build.json",
+    "typecheck": "../../apps/office/node_modules/.bin/tsc --noEmit -p tsconfig.json",
+    "test": "../../apps/office/node_modules/.bin/vitest run --cache=false"
+  }
+}
