@@ -25,6 +25,8 @@
 
 Host acceptance использовал фиксированную безвредную задачу, не произвольную команду и не модель. PASS этого сценария не разрешает запуск обычных пользовательских задач и не является подтверждением production dispatch.
 
+[`acceptance/STAGE-A-SUPERVISOR.md`](acceptance/STAGE-A-SUPERVISOR.md) описывает предыдущий checkpoint, когда live systemd verification ещё не проводилась. Таблица выше отражает более поздний host acceptance на 15 ноября 2026 года и supersedes только прежний статус live A1–A4; выводы той страницы о незавершённом production provider/dispatch остаются актуальными.
+
 ## Stage B — Production Dispatch
 
 - Acceptance-тесты на **fake Runtime** ранее прошли.
