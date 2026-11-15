@@ -1,152 +1,59 @@
-# Development Roadmap
+# Дорожная карта Open Agent Office
 
-## Stage 0 — Research
+План разделяет готовность библиотечных компонентов, тестовую интеграцию и production E2E. Переход этапа подтверждается критериями, а не наличием кода или визуальной анимации.
 
-- [x] Clone four upstream repositories.
-- [x] Inspect high-level structure, package manifests and licenses.
-- [x] Inspect Open Office orchestrator and runtime adapter.
-- [x] Confirm OpenCode CLI supports --model and --format json.
-- [x] Locate the user's existing Obsidian vault.
-- [x] Validate exact upstream APIs and dependency compatibility.
+## P0 — Рабочая MVP-версия
 
-## Stage 1 — Foundation
+| Пункт | Критерии готовности |
+| --- | --- |
+| 1. Завершить Production Dispatch | Авторизованный API preview/confirmation создаёт durable задачу; Server разрешает однозначный Runtime/model; budget admission происходит до запуска; отсутствие подтверждения не запускает Runtime. |
+| 2. Подключить system-level Supervisor к Core | Core использует production provider и настоящий Unix IPC; `SO_PEERCRED` сверяет разрешённые UID/GID; Supervisor читает только Core-owned durable binding и ведёт защищённый journal; HTTP Server не работает от root. |
+| 3. Запускать Codex только через защищённый Runtime | Для обычной задачи Core записывает binding до dispatch; процесс принадлежит `mao-exec`; проверены systemd properties, workspace allowlist и cgroup membership; direct-spawn fallback отсутствует. |
+| 4. Подтвердить trusted termination и результат | Для одной задачи проверяются `InvocationID`, `ControlGroup`, `populated=0`, независимая attestation и durable result/artifacts; ошибка или неопределённость не даёт `COMPLETED`. |
+| 5. Выполнить две реальные задачи в разных проектах | Два независимых проекта и workspace; два real Codex execution проходят admission, не превышая параллельность 2; третий запуск остаётся в очереди/отклоняется по контракту; Reviewer проверяет evidence. |
+| 6. Проверить persistence и restart | SQLite, safety state и supervisor journal сохраняются; после перезапуска Core/Supervisor completed работа не запускается повторно, незавершённая работа проходит только разрешённую recovery-процедуру. |
+| 7. Подключить реальные статусы к офису | UI показывает данные authenticated API/SSE, различает queued/running/review/failed/blocked/completed и не генерирует статусы из анимации. |
+| 8. Финальный A–E E2E | Один воспроизводимый сценарий проходит браузер → Core → Directory → Scheduler → Runtime → Supervisor → Reviewer → SQLite → API → UI; в отчёте отдельно указаны real и fake этапы. |
 
-- [x] Create monorepo structure.
-- [x] Initialize workspace and lockfile.
-- [x] Create shared event and entity types.
-- [x] Create configuration and secret handling.
-- [x] Add health endpoint and smoke tests.
+**Выход P0:** два независимых реальных проекта прошли критерии; persisted данные пережили рестарт; ни один ошибочный путь не сообщает неподтверждённый успех.
 
-## Stage 2 — First real team
+## P1 — Стабильность и эксплуатация
 
-- [x] Register Kimi K3 as Director. Historical assignment for this stage,
-  replaced by the economical model table in OAO-MODEL-002
-  (`docs/reports/OAO-MODEL-002.md`).
-- [x] Register two independently configurable coding employees.
-- [x] Launch an OpenCode session with an explicit model.
-- [x] Capture status, output, errors and token usage where available.
-- [x] Persist tasks and events in SQLite.
+- Crash recovery Core и Supervisor: каждый crash point покрыт тестом; неизвестный исход остаётся quarantined до независимого подтверждения.
+- Параллельность: атомарно допускаются максимум два активных LLM; третье выполнение не обходит очередь и глобальный safety gate.
+- Retry и idempotency: повторяются только классифицированные безопасные операции; повторный запрос не создаёт второй оплачиваемый execution.
+- Наблюдаемость: диагностика показывает readiness, Runtime, очередь, budget и safety gate без prompt, credentials или полного содержимого пользовательских документов.
+- Файлы и секреты: конфиги и token имеют private permissions; журналы редактируют секреты; рабочие каталоги ограничены проектным allowlist.
+- Usage и лимиты: разделяются input/output/cache tokens, фактические usage events, известная стоимость и UNKNOWN allowance; платный fallback выключен без отдельного допуска.
+- Длительная работа: soak-тесты с fake Runtime и контролируемыми host probes проверяют утечки слотов, процессов и событий, не создавая неограниченных LLM-вызовов.
 
-## Stage 3 — Office UI
+## P2 — Автономная мультиагентная команда
 
-- [x] Visual office and employee movement.
-- [x] Employee details and real-time status.
-- [x] Chat, task board and project navigation.
-- [x] Pet with deterministic local animations.
-- [x] Reports and settings.
-- [x] Rework the isometric room for four independent employee stations.
-- [x] Add collision-aware navigation, chair placement semantics and geometry
-  tests.
-- [x] Adopt the supplied four-person room texture without double-rendering
-  furniture, while retaining dynamic interaction overlays and office events.
-- [x] Align baked-scene collision and interaction geometry to the 1672×941
-  source image; add debug overlays and geometry tests.
-- [x] Add reviewed project-local multi-frame sheets derived from the existing
-  character PNGs and connect walking, working, idle and coffee frame sequences
-  for Director, Developer, Engineer and Analyst.
+- Director выбирает сотрудников по задаче, профессии, отделу и доступности.
+- Планировщик строит DAG с критериями приёмки и безопасным лимитом параллельности.
+- Skills загружаются постепенно и только в объёме, нужном исполнителю.
+- Reviewer получает фактический Evidence Package и проверяет результаты; утверждение модели не подменяет проверенный exit code тестовой команды.
+- Кооперация агентов передаёт явные артефакты и решения между этапами.
+- Контекст задачи сокращается за счёт релевантных входных данных, без удаления необходимых инженерных доказательств.
+- Команда работает над несколькими проектами с отдельными workspace, состояниями и артефактами.
 
-## Stage 4 — Obsidian archive
+## P3 — Виртуальный офис
 
-- [ ] Configure a dedicated vault subdirectory.
-- [ ] Implement SQLite outbox and idempotent exporter.
-- [ ] Archive projects, tasks, agent activity and reports.
-- [ ] Add links, templates, daily logs and attachments.
-- [ ] Add recovery and archive integrity tests.
+- Реальные подтверждённые события отображаются как статусы сотрудников; анимация остаётся только презентационным слоем.
+- Рабочие места связываются с актуальными задачами и безопасными действиями интерфейса.
+- Agent Terminal показывает структурированные сообщения, команды, проверки, файлы, ошибки, Runtime/model и доступные usage.
+- Переключение этажей, панель проектов и история деятельности работают на данных API.
+- 3D-сцена оптимизируется по загрузке ресурсов, FPS и доступности; основной интерфейс остаётся полезным без WebGL.
 
-## Stage 4a — Debian desktop shell
+## P4 — Расширение
 
-- [x] Add Electron main process around the existing Vite office.
-- [x] Load production `?sim` by default until the local backend is available.
-- [x] Add Linux desktop entry, user icon installation and uninstall scripts.
-- [x] Preserve GNOME favorites without duplicates; document non-GNOME pinning.
-- [ ] Validate packaged Electron runtime on the target Debian installation.
+- Новые Runtime-провайдеры добавляются через общий типизированный контракт и проходят тот же readiness/security gate.
+- Интеграции с инструментами разработки запускаются через ограниченные адаптеры, с явными разрешениями и проверяемыми результатами.
+- Obsidian-экспорт подключается к durable outbox после подтверждения приватности, idempotency и rollback.
+- GitHub, Blender и инженерные инструменты получают независимые acceptance-тесты и минимальные полномочия.
+- Система Skills становится расширяемой с валидацией версий, совместимости и зависимостей.
+- Каталог может содержать больше виртуальных сотрудников при неизменном отдельном лимите исполняемых моделей.
 
-## Stage 5 — Skills and tools
+## Постоянное ограничение ресурсов
 
-- [ ] Role-specific Skills.
-- [ ] Browser automation.
-- [ ] Blender integration.
-- [ ] KOMPAS-3D integration.
-- [ ] Documents, images and presentations.
-
-## Stage 6 — Autonomous operation
-
-- [ ] Dynamic model routing.
-- [ ] Parallel task execution.
-- [ ] Review and repair loops.
-- [ ] Permission profiles and emergency stop.
-- [ ] Budget limits and recovery after crashes.
-
-## Stage 7 — Benchmarking
-
-- [ ] Compare individual models and agent teams.
-- [ ] Measure pass rate, quality, latency and cost.
-- [ ] Compare against a fixed Opus 5.5 baseline.
-# Desktop Polish V1 status — 2026-11-01
-
-- [x] Preserve the 1672×941 scene ratio in the Electron content area.
-- [x] Keep four live-compatible desk spots with collision-safe standing and
-  approach coordinates.
-- [x] Repair generated sprite-sheet frame clearing and use the existing
-  animation clock for visible state frames.
-- [x] Make the default office UI Russian (`ru-RU`) without renaming internal
-  IDs or API fields.
-- [x] Add tests for sizing, workstation safety, routes and frame selection.
-- [ ] Run the new screenshots and Electron smoke test on a Debian GNOME host
-  with a functioning display/sandbox; this CI/container blocks the renderer.
-# Fix V2 status — 2026-11-01
-
-- [x] Remove the sim initialization path that froze all four employees at
-  their desks.
-- [x] Add deterministic local board visit/return movement using existing A*
-  routing and collision checks.
-- [x] Keep animation clocks independent of React renders and expose their
-  state in debug mode.
-- [x] Render generated sheets using each character's real frame dimensions.
-- [x] Translate demo chat, status pools and visible operational messages to
-  Russian; add Russian provider instructions for four roles.
-- [x] Add behavioral tests for the local movement plan and animation clock.
-- [ ] Run Electron and capture `data/live-office-movement.png`,
-  `data/live-office-chat-ru.png`, `data/live-office-animations.png` and
-  `data/live-office-debug.png` on Debian GNOME; the current managed runtime
-  blocks Electron/Chromium sandbox startup and local ports.
-
-# OAO-MODEL-002 — economical models and Helper — 2026-11-02
-
-- [x] Switch the four core employees to economical models: Director and
-  Analyst on `opencode-go/mimo-v2.6-flash`, Developer on
-  `opencode-go/glm-5.3-flash`, Engineer on `opencode-go/qwen3.8-flash`.
-- [x] Add the fifth auxiliary employee Helper on `opencode-go/beam-free`
-  (routing table and fake-Runtime tests only; on-demand start, no auto-start,
-  no simulated delegation between agents).
-- [x] Set the manual OpenCode model in the root `opencode.json` to
-  `opencode-go/glm-5.3-flash`.
-- [ ] Add Helper to the visual office scene (see Stage 9).
-
-## Stage 9 — Agent Terminal
-
-- [ ] Add the selected third terminal-interface image from the ChatGPT
-  collection shown on 2026-11-02 as a permanent design reference in the
-  repository. The image is not currently confirmed to exist in the repository;
-  add it before visual implementation. It is the sole visual reference for
-  this terminal: a modern dark developer console with clear typography,
-  structured messages, polished command/result blocks, and readable code and
-  logs. Do not blend in the other two images' styles.
-- [ ] Build a custom React employee terminal instead of reproducing the
-  standard OpenCode TUI.
-- [ ] Stream real structured AI employee messages from
-  `packages/runtime-opencode`; never simulate work or parse OpenCode TUI
-  presentation.
-- [ ] Render Markdown and syntax-highlighted code, with expandable structured
-  details for file reads/creation/changes, command and test execution, tool
-  results, and errors; show the actual command/tool output.
-- [ ] Derive employee states from Runtime events and display model, task,
-  elapsed time, and available usage/runtime statistics.
-- [ ] Provide message input and execution cancellation.
-- [ ] Keep separate sessions and history for all five employees, including
-  the auxiliary Helper.
-- [ ] Add the fifth employee (Helper) to the visual office scene, its desk
-  spot and character set; until then the on-screen office keeps four
-  characters.
-- [ ] Require controlled confirmation for dangerous actions and redact
-  secrets, tokens, and confidential data from logs and displayed output.
+**113 виртуальных сотрудников не равны 113 активным LLM.** До изменения ресурсной политики плановый предел — две параллельные модели. Неизвестный allowance остаётся UNKNOWN и не превращается в выдуманный денежный или токенный лимит.
