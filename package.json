@@ -1,0 +1,22 @@
+{
+  "name": "mao-hybrid",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "build": "corepack pnpm --filter @mao-hybrid/contracts build && corepack pnpm --filter @mao-hybrid/events build && corepack pnpm --filter @mao-hybrid/chat build && corepack pnpm --filter @mao-hybrid/runtime build && corepack pnpm --filter @mao-hybrid/tools-coding build && corepack pnpm --filter @mao-hybrid/tools-electronics build && corepack pnpm --filter @mao-hybrid/tools-cad build && corepack pnpm --filter @mao-hybrid/tools-research build && corepack pnpm --filter @mao-hybrid/integrations build && corepack pnpm --filter @mao-hybrid/api build",
+    "typecheck": "corepack pnpm build && corepack pnpm --filter @mao-hybrid/contracts typecheck && corepack pnpm --filter @mao-hybrid/events typecheck && corepack pnpm --filter @mao-hybrid/chat typecheck && corepack pnpm --filter @mao-hybrid/runtime typecheck && corepack pnpm --filter @mao-hybrid/tools-coding typecheck && corepack pnpm --filter @mao-hybrid/tools-electronics typecheck && corepack pnpm --filter @mao-hybrid/tools-cad typecheck && corepack pnpm --filter @mao-hybrid/tools-research typecheck && corepack pnpm --filter @mao-hybrid/integrations typecheck && corepack pnpm --filter @mao-hybrid/api typecheck",
+    "test": "corepack pnpm build && corepack pnpm --filter @mao-hybrid/company test && corepack pnpm --filter @mao-hybrid/task-store test && node --test tests/*.test.mjs",
+    "start": "corepack pnpm --filter @mao-hybrid/api start",
+    "dev": "corepack pnpm --filter @mao-hybrid/api dev"
+  },
+  "devDependencies": {
+    "@mao-hybrid/api": "workspace:*",
+    "@mao-hybrid/contracts": "workspace:*",
+    "@mao-hybrid/events": "workspace:*",
+    "@mao-hybrid/runtime": "workspace:*",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@mao-hybrid/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./dist/api.d.ts", "import": "./dist/api.js" }
+  },
+  "dependencies": {
+    "@mao-hybrid/company": "workspace:*",
+    "@mao-hybrid/contracts": "workspace:*",
+    "@mao-hybrid/events": "workspace:*",
+    "@mao-hybrid/runtime": "workspace:*",
+    "@mao-hybrid/task-store": "workspace:*",
+    "@mao-hybrid/tools-coding": "workspace:*",
+    "@mao-hybrid/tools-electronics": "workspace:*",
+    "@mao-hybrid/tools-cad": "workspace:*",
+    "@mao-hybrid/tools-research": "workspace:*",
+    "@mao-hybrid/integrations": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "node --watch dist/index.js"
+  }
+}
