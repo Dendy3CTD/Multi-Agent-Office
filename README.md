@@ -16,14 +16,17 @@ key.
     corepack pnpm install
     cp mao-hybrid.config.example.json mao-hybrid.config.json
     corepack pnpm build
-    corepack pnpm start
+    MAO_HYBRID_CONFIG="$PWD/mao-hybrid.config.json" corepack pnpm start
 
 The API binds only to 127.0.0.1. Edit mao-hybrid.config.json to set the Codex
 CLI path for the host. Runtime authorization is inherited from the current
 user's Codex CLI configuration. Do not add an API key.
 
-Default durable task database: ./data/tasks.sqlite. It is local to this
-checkout and unrelated to any legacy MAO database.
+The Codex executable path is explicit in the example configuration, so startup
+does not depend on the terminal's `PATH`. The API package runs with
+`apps/api` as its working directory; its default durable task database is
+`apps/api/data/tasks.sqlite`. This database is local to this checkout and
+unrelated to any legacy MAO database.
 
 ## Smoke request
 

@@ -6,3 +6,17 @@ data/
 *.sqlite-shm
 mao-hybrid.config.json
 .env
+
+# MAO Hybrid local secrets and state
+.env
+.env.*
+!.env.example
+mao-hybrid.config.json
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.pem
+*.key
+node_modules/
+dist/
