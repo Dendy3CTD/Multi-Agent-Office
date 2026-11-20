@@ -59,6 +59,8 @@ test("UNSAFE electrical compatibility result is never accepted as a completed de
     runtime: {
       available: () => true,
       async execute(input) {
+        assert.ok(input.taskTools.requiredToolIds.includes("electronics.electrical.validate"));
+        assert.equal(input.taskTools.requiredToolIds.includes("coding.check.run"), false, "an explicit Electronics MCP invocation is not a Coding check request");
         const server = input.taskTools.mcpServers.find(item => item.name === "mao_electronics");
         const call = callMcp(server, "electronics.electrical.validate", {
           components: [{ id: "mcu", datasheetUrl: "https://parts.example/mcu", gpio: { maxCurrent: 0.01, maxVoltage: 3.3 } }, { id: "motor", datasheetUrl: "https://parts.example/motor" }],

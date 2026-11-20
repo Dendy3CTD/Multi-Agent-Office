@@ -74,11 +74,15 @@ export function adaptLiveTasks(records: readonly LiveTaskDTO[]): OfficeTask[] {
     projectId: record.projectId,
     employeeId: record.employeeId,
     updatedAt: record.updatedAt,
-    errorCode: record.error?.code,
+    errorCode: typeof record.error === 'object' ? record.error?.code : undefined,
+    errorMessage: typeof record.error === 'string' ? record.error : record.error?.message,
     runtimeId: record.runtimeId,
     modelId: record.modelId,
     startedAt: record.startedAt,
     resultSummary,
+    result,
+    toolCalls: record.toolCalls,
+    rawStatus: typeof record.status === 'string' ? record.status : undefined,
     artifactUrls: [],
     subtasks: record.subtasks?.flatMap(subtask => adaptLiveTasks([subtask])),
     dependencies: record.dependencies,
@@ -91,7 +95,7 @@ function taskStatus(status: unknown): OfficeTask['status'] {
   if (status === 'failed' || status === 'recovery') return 'failed'
   if (status === 'cancelled') return 'cancelled'
   if (status === 'blocked') return 'blocked'
-  if (status === 'validating' || status === 'accepting' || status === 'review') return 'review'
+  if (status === 'validating' || status === 'accepting' || status === 'review' || status === 'needs_review') return 'review'
   if (['received', 'analyzing', 'planned', 'queued', 'scheduled', 'admitted', 'running'].includes(String(status))) return ['analyzing', 'running', 'scheduled', 'admitted'].includes(String(status)) ? 'running' : 'queued'
   return 'queued'
 }

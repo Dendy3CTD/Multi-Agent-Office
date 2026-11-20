@@ -24,6 +24,8 @@ test("Codex CLI JSONL is normalized into events and a completed RuntimePort resu
     workingDirectory: scratch, signal: new AbortController().signal,
   });
 
-  assert.deepEqual(result, { status: "completed", text: "fixture result", result: { text: "fixture result" }, executionState: "terminated" });
+  const { toolCalls = [], ...completedResult } = result;
+  assert.deepEqual(completedResult, { status: "completed", text: "fixture result", result: { text: "fixture result" }, executionState: "terminated" });
+  assert.deepEqual(toolCalls, [], "the JSONL fixture contains no MCP tool calls");
   assert.deepEqual(events.list("task-1").map(event => event.type), ["session.started", "tool.started", "agent.message", "runtime.completed"]);
 });

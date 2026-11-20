@@ -1,10 +1,15 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { accessSync, constants, mkdirSync, realpathSync, statSync } from "node:fs";
+import { accessSync, chmodSync, constants, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, rmdirSync, statSync, unlinkSync } from "node:fs";
+import { createConnection, createServer } from "node:net";
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS, registerTool, type RuntimeMcpServerConfig, type ToolDefinition, type ToolSummary } from "@mao-hybrid/contracts";
+import { CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS, CODEX_AUTO_APPROVED_CODING_WORKSPACE_TOOLS, registerTool, type RuntimeMcpServerConfig, type ToolDefinition, type ToolSummary } from "@mao-hybrid/contracts";
+import { codingCheckFingerprint } from "./check-fingerprint.js";
+
+export { codingCheckFingerprint } from "./check-fingerprint.js";
 
 export type CodingCheck =
   | "python-test" | "python-lint" | "python-compile" | "rust-test" | "rust-check"
@@ -19,6 +24,7 @@ export interface ToolCommandResult {
   readonly durationMs: number;
   readonly status: "passed" | "failed" | "blocked" | "timed_out";
   readonly reasonCode?: "not_repository";
+  readonly workspaceFingerprint?: string;
   readonly artifacts: readonly { readonly path: string; readonly uri: string }[];
 }
 
@@ -59,6 +65,8 @@ export interface CodingTaskEmployee {
   readonly id?: string;
   readonly professionId: string;
   readonly skills: readonly string[];
+  /** Capabilities declared by the selected profession profile. */
+  readonly roleCapabilities?: readonly string[];
 }
 
 export interface CodingTaskDispatcher {
@@ -81,9 +89,10 @@ export function filterCodingToolsByCapabilities(tools: readonly ToolDefinition[]
   });
 }
 
-/** Only coding and QA professions receive language tooling; other employee skills remain untouched. */
+/** Resolve task-scoped language tooling from employee skills and declared role capabilities. */
 export function codingCapabilitiesForEmployee(employee: CodingTaskEmployee): readonly string[] {
   const capabilities = new Set(employee.skills);
+  if (employee.roleCapabilities?.includes("code")) capabilities.add("coding");
   if (employee.professionId === "developer") {
     for (const capability of ["coding", "git", "git-write", "github-readonly", "browser-testing", "python", "rust", "typescript", "javascript", "c", "cpp", "shell", "web", "build", "testing"]) capabilities.add(capability);
   } else if (employee.professionId === "qa-engineer") {
@@ -99,10 +108,15 @@ export function createTaskCodingDispatcher(options: {
   readonly workspaceRoot: string;
   readonly employee: CodingTaskEmployee;
   readonly repositoryRoot?: string;
+  readonly readOnly?: boolean;
+  readonly allowCodeReview?: boolean;
   readonly allowExternalWrites?: boolean;
   readonly allowLocalGitWrites?: boolean;
   readonly browserPort?: BrowserAutomationPort;
   readonly codeReviewPort?: CodeReviewPort;
+  /** Task-scoped Unix socket used by the stdio MCP subprocess to reach the host's existing Runtime. */
+  readonly reviewSocketPath?: string;
+  readonly reviewSocketToken?: string;
   readonly localServers?: readonly LocalServerDefinition[];
 }): CodingTaskDispatcher {
   const workspaceRoot = requireDirectory(options.workspaceRoot, "workspaceRoot");
@@ -117,15 +131,21 @@ export function createTaskCodingDispatcher(options: {
     ...(options.codeReviewPort ? { codeReviewPort: options.codeReviewPort } : {}),
     ...(options.localServers ? { localServers: options.localServers } : {}),
   });
-  const tools = filterCodingToolsByCapabilities(toolset.tools, capabilities);
+  const tools = filterCodingToolsByCapabilities(toolset.tools, capabilities).filter(tool =>
+    (options.allowCodeReview !== false || tool.id !== "coding.review.diff") &&
+    (!options.readOnly || tool.annotations?.readOnlyHint === true)
+  );
   const allowed = new Map(tools.map((tool) => [tool.id, tool]));
-  const mcpOptions = { workspaceRoot, repositoryRoot, allowedToolIds: [...allowed.keys()], employeeCapabilities: capabilities, allowExternalWrites: options.allowExternalWrites === true, allowLocalGitWrites: options.allowLocalGitWrites ?? options.employee.professionId === "developer" };
+  const allowedToolIds = [...allowed.keys()];
+  const approvedToolIds = allowedToolIds.filter((id) => (CODEX_AUTO_APPROVED_CODING_WORKSPACE_TOOLS as readonly string[]).includes(id));
+  const mcpOptions = { workspaceRoot, repositoryRoot, allowedToolIds, approvedToolIds, employeeCapabilities: capabilities, allowExternalWrites: options.allowExternalWrites === true, allowLocalGitWrites: options.allowLocalGitWrites ?? options.employee.professionId === "developer", ...(options.reviewSocketPath && options.reviewSocketToken ? { reviewSocketPath: options.reviewSocketPath, reviewSocketToken: options.reviewSocketToken } : {}) };
   const mcpPath = fileURLToPath(new URL("./mcp-server.js", import.meta.url));
   const mcpServer: RuntimeMcpServerConfig = Object.freeze({
     name: "mao_coding",
     command: process.execPath,
     args: Object.freeze([mcpPath, JSON.stringify(mcpOptions)]),
-    allowedTools: Object.freeze([...allowed.keys()]),
+    allowedTools: Object.freeze(allowedToolIds),
+    approvedToolIds: Object.freeze(approvedToolIds),
   });
   return Object.freeze({
     projectId: options.projectId, taskId: options.taskId, executionId: options.executionId, workspaceRoot,
@@ -180,7 +200,100 @@ export interface BrowserAutomationPort {
 
 export interface CodeReviewPort {
   /** The host binds this to the existing Codex Runtime and current durable task context. */
-  review(input: { readonly diff: string; readonly requirements: readonly string[]; readonly checks: readonly Readonly<Record<string, unknown>>[] }): Promise<{ readonly summary: string; readonly findings: readonly Readonly<Record<string, unknown>>[]; readonly requirementCoverage?: readonly Readonly<Record<string, unknown>>[] }>;
+  review(input: { readonly diff: string; readonly requirements: readonly string[]; readonly checks: readonly Readonly<Record<string, unknown>>[] }): Promise<CodeReviewResult>;
+}
+
+export type CodeReviewResult =
+  | { readonly status: "completed"; readonly reviewComplete: true; readonly executionId: string; readonly summary: string; readonly findings: readonly Readonly<Record<string, unknown>>[]; readonly requirementCoverage?: readonly Readonly<Record<string, unknown>>[] }
+  | { readonly status: "blocked"; readonly message: string; readonly executionId?: string; readonly runtimeStatus?: string };
+
+/** Local IPC for the host and its stdio MCP child. A short path avoids the Unix socket pathname limit. */
+export async function createCodeReviewBridge(reviewer: CodeReviewPort): Promise<{ readonly socketPath: string; readonly token: string; close(): Promise<void> }> {
+  const directory = mkdtempSync("/tmp/mao-review-");
+  const socketPath = join(directory, "review.sock");
+  const token = randomBytes(32).toString("hex");
+  const server = createServer(socket => {
+    let buffer = "";
+    let received = false;
+    socket.setEncoding("utf8");
+    socket.on("error", () => socket.destroy());
+    socket.on("data", chunk => {
+      if (received) return;
+      buffer += chunk;
+      if (Buffer.byteLength(buffer) > 1_000_000) { socket.destroy(); return; }
+      const newline = buffer.indexOf("\n");
+      if (newline < 0) return;
+      received = true;
+      void handleCodeReviewRequest(buffer.slice(0, newline), reviewer, token).then(
+        result => socket.end(JSON.stringify({ result }) + "\n"),
+        () => socket.end(JSON.stringify({ error: "review_runtime_unavailable" }) + "\n"),
+      );
+    });
+    socket.setTimeout(180_000, () => socket.destroy());
+  });
+  await new Promise<void>((resolveListen, rejectListen) => {
+    server.once("error", rejectListen);
+    server.listen(socketPath, resolveListen);
+  }).catch(cause => { try { rmdirSync(directory); } catch {} throw cause; });
+  try { chmodSync(socketPath, 0o600); }
+  catch (cause) {
+    await new Promise<void>(resolveClose => server.close(() => resolveClose()));
+    try { unlinkSync(socketPath); } catch {}
+    try { rmdirSync(directory); } catch {}
+    throw cause;
+  }
+  return Object.freeze({
+    socketPath,
+    token,
+    async close() {
+      await new Promise<void>((resolveClose, rejectClose) => server.close(cause => cause ? rejectClose(cause) : resolveClose()));
+      try { unlinkSync(socketPath); } catch {}
+      try { rmdirSync(directory); } catch {}
+    },
+  });
+}
+
+export function createCodeReviewSocketPort(socketPath: string, token: string): CodeReviewPort {
+  return Object.freeze({ review(input: Parameters<CodeReviewPort["review"]>[0]) {
+    return new Promise<CodeReviewResult>((resolveResult, rejectResult) => {
+      const socket = createConnection(socketPath);
+      let buffer = "";
+      let settled = false;
+      const fail = (cause: Error) => { if (!settled) { settled = true; socket.destroy(); rejectResult(cause); } };
+      socket.setTimeout(180_000, () => fail(new Error("Code review bridge timed out")));
+      socket.on("connect", () => socket.write(JSON.stringify({ ...input, token }) + "\n"));
+      socket.setEncoding("utf8");
+      socket.on("data", chunk => {
+        if (settled) return;
+        buffer += chunk;
+        if (Buffer.byteLength(buffer) > 1_000_000) { fail(new Error("Code review bridge response exceeded its limit")); return; }
+        const newline = buffer.indexOf("\n");
+        if (newline < 0) return;
+        try {
+          const envelope: unknown = JSON.parse(buffer.slice(0, newline));
+          if (!isRecord(envelope) || !isRecord(envelope.result) && envelope.error !== "review_runtime_unavailable") throw new TypeError("Invalid CodeReviewPort response");
+          settled = true;
+          socket.end();
+          if (envelope.error === "review_runtime_unavailable") rejectResult(new Error("Existing Runtime reviewer is unavailable"));
+          else resolveResult(envelope.result as unknown as CodeReviewResult);
+        } catch (cause) { fail(cause instanceof Error ? cause : new Error("Invalid CodeReviewPort response")); }
+      });
+      socket.on("error", cause => fail(cause));
+      socket.on("close", () => fail(new Error("Code review bridge closed before replying")));
+    });
+  } });
+}
+
+async function handleCodeReviewRequest(raw: string, reviewer: CodeReviewPort, token: string): Promise<CodeReviewResult> {
+  const input: unknown = JSON.parse(raw);
+  if (!isRecord(input) || input.token !== token || typeof input.diff !== "string" || Buffer.byteLength(input.diff) > 900_000 || !Array.isArray(input.requirements) || input.requirements.length > 32 || input.requirements.some(value => typeof value !== "string") || !Array.isArray(input.checks) || input.checks.length > 32 || input.checks.some(value => !isRecord(value))) {
+    return { status: "blocked", message: "Code review bridge rejected an invalid or oversized request." };
+  }
+  try {
+    return await reviewer.review({ diff: input.diff, requirements: input.requirements as string[], checks: input.checks as Readonly<Record<string, unknown>>[] });
+  } catch {
+    return { status: "blocked", message: "Existing Runtime reviewer could not complete the request." };
+  }
 }
 
 interface CommandSpec { readonly command: string; readonly args: readonly string[]; readonly capability: string; }
@@ -189,7 +302,7 @@ interface ProcessResult { readonly exitCode: number | null; readonly stdout: str
 interface RunningLocalServer { readonly child: ChildProcess; readonly url: string; readonly command: string; readonly startedAt: string; exited: boolean; exitCode: number | null; stderr: string; closed: Promise<void>; }
 
 const CHECKS: Record<CodingCheck, CommandSpec> = {
-  "python-test": { command: "pytest", args: [], capability: "python" },
+  "python-test": { command: "python3", args: ["-m", "unittest", "discover", "-v"], capability: "python" },
   "python-lint": { command: "ruff", args: ["check", "."], capability: "python" },
   "python-compile": { command: "python3", args: ["-m", "compileall", "-q", "."], capability: "python" },
   "rust-test": { command: "cargo", args: ["test"], capability: "rust" },
@@ -432,18 +545,43 @@ function definition(id: string, name: string, description: string, inputSchema: 
 async function runCheck(raw: unknown, options: RunnerOptions, workspaceRoot: string): Promise<ToolCommandResult> {
   const input = record(raw);
   const check = stringValue(input.check, "check") as CodingCheck;
-  const spec = CHECKS[check];
-  if (!spec) throw new TypeError(`Unsupported check kind: ${check}`);
+  const baseSpec = CHECKS[check];
+  if (!baseSpec) throw new TypeError(`Unsupported check kind: ${check}`);
+  const spec = check === "python-test" && projectUsesPytest(workspaceRoot)
+    ? { command: "pytest", args: [], capability: "python" }
+    : baseSpec;
   const paths = input.paths === undefined ? [] : stringArray(input.paths, "paths", 0, 32).map((path) => relativeInside(workspaceRoot, path));
   if (paths.length > 0 && !["python-test", "javascript-test", "javascript-check", "vitest", "playwright", "eslint", "ruff", "c-check", "cpp-check", "html-check", "css-check", "shell-check"].includes(check)) throw new TypeError(`${check} does not accept file paths; run the project-level check without paths`);
   const needsFiles = ["javascript-check", "c-check", "cpp-check", "shell-check"].includes(check);
   if (needsFiles && paths.length === 0) throw new TypeError(`${check} requires at least one project-relative source path`);
   const artifactPaths = input.artifacts === undefined ? [] : stringArray(input.artifacts, "artifacts", 0, 32).map((path) => resolveInside(workspaceRoot, path));
+  const usesUnittest = check === "python-test" && spec.command === "python3";
   const command = resolveExecutable(spec.command, workspaceRoot, options.commandAvailability, options.repositoryRoot);
   if (!command) return blockedResult(spec.command, `${spec.command} is unavailable; ${check} was not run.`);
-  const args = [...spec.args, ...paths];
+  let args = [...spec.args, ...paths];
+  if (usesUnittest) {
+    if (paths.length === 0) args = [...spec.args, "-s", pythonTestStartDirectory(workspaceRoot)];
+    else {
+      if (paths.length !== 1) return blockedResult(formatCommand(command, spec.args), "Path-scoped unittest accepts one file or directory; omit paths to run full project discovery.");
+      const target = resolveInside(workspaceRoot, paths[0]);
+      let targetStat;
+      try { targetStat = statSync(target); } catch { return blockedResult(formatCommand(command, spec.args), "The selected unittest path does not exist; no tests were run."); }
+      const relativeTarget = relative(workspaceRoot, target);
+      args = targetStat.isDirectory()
+        ? [...spec.args, "-s", relativeTarget || "."]
+        : [...spec.args, "-s", relative(workspaceRoot, resolve(target, "..")) || ".", "-p", target.split(sep).at(-1)!];
+    }
+  }
   const run = await runCommand(command, args, options);
-  return commandResult(command, args, run, options, workspaceRoot, artifactPaths);
+  const result = commandResult(command, args, run, options, workspaceRoot, artifactPaths);
+  if (usesUnittest && run.exitCode === 0 && /Ran 0 tests?\b/.test(`${run.stdout}\n${run.stderr}`)) {
+    return Object.freeze({ ...result, status: "failed", stderr: `${result.stderr}\nNo unittest tests were discovered; the empty test run is not a pass.`.trim() });
+  }
+  if (result.status === "passed") {
+    const workspaceFingerprint = await codingCheckFingerprint(workspaceRoot).catch(() => undefined);
+    if (workspaceFingerprint) return Object.freeze({ ...result, workspaceFingerprint });
+  }
+  return result;
 }
 
 async function gitRead(repositoryRoot: string, args: string[], runner: RunnerOptions): Promise<ToolCommandResult> {
@@ -498,12 +636,76 @@ async function reviewDiff(raw: unknown, repositoryRoot: string, runner: RunnerOp
   const requirements = input.requirements === undefined ? [] : stringArray(input.requirements, "requirements", 0, 32);
   const checks = input.checks === undefined ? [] : input.checks;
   if (!Array.isArray(checks) || checks.length > 32 || checks.some((value) => !value || typeof value !== "object" || Array.isArray(value))) throw new TypeError("checks must be an array of at most 32 result objects");
-  const diff = await gitRead(repositoryRoot, ["diff", "HEAD", "--no-ext-diff", "--"], runner);
-  if (diff.status !== "passed") return { status: "blocked", diff, staticFindings: [], checks, runtimeReview: { status: "blocked", message: "Git diff is unavailable." } };
+  const diff = await collectReviewDiff(repositoryRoot, runner);
+  if (diff.status !== "passed") return { status: "blocked", diff, staticFindings: [], checks, runtimeReview: { status: "blocked", message: "Git diff collection is unavailable or exceeded its workspace/output limits." } };
   const staticFindings = scanDiff(diff.stdout);
   if (!reviewer) return { status: "blocked", diff, staticFindings, checks, runtimeReview: { status: "blocked", message: "Substantive code review needs a CodeReviewPort bound to the existing Codex Runtime; no second Runtime was created." } };
-  const runtimeReview = await reviewer.review({ diff: diff.stdout, requirements, checks: checks as Readonly<Record<string, unknown>>[] });
+  let runtimeReview: CodeReviewResult;
+  try { runtimeReview = await reviewer.review({ diff: diff.stdout, requirements, checks: checks as Readonly<Record<string, unknown>>[] }); }
+  catch { return { status: "blocked", diff, staticFindings, checks, runtimeReview: { status: "blocked", message: "The existing Runtime reviewer failed; no substantive review was recorded." } }; }
+  if (runtimeReview.status !== "completed" || runtimeReview.reviewComplete !== true || typeof runtimeReview.summary !== "string" || !runtimeReview.summary.trim() || !Array.isArray(runtimeReview.findings) || !runtimeReview.executionId) {
+    return { status: "blocked", diff, staticFindings, checks, runtimeReview: runtimeReview.status === "blocked" ? runtimeReview : { status: "blocked", message: "Reviewer execution did not return explicit, structured confirmation." } };
+  }
   return { status: "completed", diff, staticFindings, checks, runtimeReview };
+}
+
+async function collectReviewDiff(repositoryRoot: string, runner: RunnerOptions): Promise<ToolCommandResult & { readonly sources?: readonly Readonly<Record<string, unknown>>[] }> {
+  const workspaceScope = isWithin(repositoryRoot, runner.workspaceRoot) ? relative(repositoryRoot, runner.workspaceRoot) : "";
+  const pathspec = workspaceScope ? [`:(top,literal)${workspaceScope}`] : [];
+  // Company stores employee memory under the workspace root. It is not review input.
+  pathspec.push(`:(top,exclude,literal)${workspaceScope ? workspaceScope + "/" : ""}.mao`);
+  const trackedCommands = [
+    ["diff", "--no-ext-diff", "--", ...pathspec],
+    ["diff", "--cached", "--no-ext-diff", "--", ...pathspec],
+  ];
+  const outputs: string[] = [];
+  const sources: Readonly<Record<string, unknown>>[] = [];
+  let durationMs = 0;
+  let totalBytes = 0;
+  for (const args of trackedCommands) {
+    const result = await gitRead(repositoryRoot, args, runner);
+    durationMs += result.durationMs;
+    if (result.status !== "passed") return result;
+    outputs.push(result.stdout);
+    totalBytes += Buffer.byteLength(result.stdout);
+    sources.push({ command: result.command, exitCode: result.exitCode, status: result.status, stderr: result.stderr });
+    if (totalBytes > runner.maxOutputBytes) return blockedResult("git diff collector", "Review diff exceeded the configured output limit; no partial review was submitted.");
+  }
+  const untrackedArgs = ["ls-files", "--others", "--exclude-standard", "-z", ...(pathspec.length ? ["--", ...pathspec] : [])];
+  const untracked = await gitRead(repositoryRoot, untrackedArgs, runner);
+  durationMs += untracked.durationMs;
+  if (untracked.status !== "passed") return untracked;
+  sources.push({ command: untracked.command, exitCode: untracked.exitCode, status: untracked.status, stderr: untracked.stderr });
+  const untrackedPaths = untracked.stdout.split("\0").filter(Boolean);
+  if (untrackedPaths.length > 256) return blockedResult("git diff collector", "Review diff contains more than 256 untracked files; no partial review was submitted.");
+  for (const path of untrackedPaths) {
+    const absolutePath = resolve(repositoryRoot, path);
+    if (!isWithin(repositoryRoot, absolutePath) || !isWithin(runner.workspaceRoot, absolutePath)) return blockedResult("git diff collector", "An untracked path resolved outside the registered workspace; review was blocked.");
+    let actualPath: string;
+    try { actualPath = realpathSync(absolutePath); } catch { return blockedResult("git diff collector", "An untracked path disappeared before review; no partial review was submitted."); }
+    if (!isWithin(runner.workspaceRoot, actualPath)) return blockedResult("git diff collector", "An untracked symlink resolves outside the registered workspace; review was blocked.");
+    const args = ["diff", "--no-index", "--no-ext-diff", "--", "/dev/null", absolutePath];
+    const result = await runCommand("git", args, { ...runner, cwd: repositoryRoot });
+    durationMs += result.durationMs;
+    if (result.timedOut || (result.exitCode !== 0 && result.exitCode !== 1)) {
+      return commandResult("git", args, result, runner, repositoryRoot);
+    }
+    outputs.push(result.stdout);
+    totalBytes += Buffer.byteLength(result.stdout);
+    sources.push({ command: formatCommand("git", args), exitCode: result.exitCode, outcome: result.exitCode === 1 ? "differences_found" : "no_differences", stderr: result.stderr });
+    if (totalBytes > runner.maxOutputBytes) return blockedResult("git diff collector", "Review diff exceeded the configured output limit; no partial review was submitted.");
+  }
+  const stdout = outputs.join("");
+  return {
+    command: "git diff collector (worktree, index, and untracked files)",
+    exitCode: 0,
+    stdout,
+    stderr: sources.map(source => typeof source.stderr === "string" ? source.stderr : "").filter(Boolean).join("\n"),
+    durationMs,
+    status: "passed",
+    artifacts: [],
+    sources,
+  };
 }
 
 function scanDiff(diff: string): readonly Readonly<Record<string, string>>[] {
@@ -626,12 +828,44 @@ async function githubRepository(repositoryRoot: string, runner: RunnerOptions): 
 }
 
 async function discoverCapabilities(workspaceRoot: string, repositoryRoot: string, availability?: (command: string) => boolean, externalWritesEnabled = false): Promise<Record<string, unknown>> {
-  const commands = [...new Set([...Object.values(CHECKS).map(({ command }) => command), "git", "gh"] )];
+  const checkSpecs = Object.entries(CHECKS).map(([check, spec]) => [check, check === "python-test" && projectUsesPytest(workspaceRoot) ? { command: "pytest" } : spec] as const);
+  const commands = [...new Set([...checkSpecs.map(([, spec]) => spec.command), "git", "gh"] )];
   const detected: Record<string, boolean> = {};
   for (const command of commands) detected[command] = resolveExecutable(command, workspaceRoot, availability, repositoryRoot) !== undefined;
   let gitRoot: string | undefined;
   try { if (assertGitRoot(repositoryRoot, { cwd: repositoryRoot, workspaceRoot, repositoryRoot, timeoutMs: 3_000, maxOutputBytes: 8_192, isolatedHome: join(workspaceRoot, ".mao-coding-home"), commandAvailability: availability }) === "ready") gitRoot = repositoryRoot; } catch { /* a Git inspection error does not hide other available capabilities */ }
-  return { workspaceRoot, repositoryRoot: gitRoot, commands: detected, languageChecks: Object.fromEntries(Object.entries(CHECKS).map(([check, spec]) => [check, detected[spec.command]])), externalWritesEnabled };
+  return { workspaceRoot, repositoryRoot: gitRoot, commands: detected, languageChecks: Object.fromEntries(checkSpecs.map(([check, spec]) => [check, detected[spec.command]])), externalWritesEnabled };
+}
+
+function pythonTestStartDirectory(workspaceRoot: string): string {
+  for (const name of ["tests", "test"]) {
+    try {
+      const path = resolveInside(workspaceRoot, name);
+      if (statSync(path).isDirectory()) return name;
+    } catch { /* use the workspace root when no safe standard test directory exists */ }
+  }
+  return ".";
+}
+
+function projectUsesPytest(workspaceRoot: string): boolean {
+  const readProjectText = (name: string): string | undefined => {
+    try {
+      const path = resolveInside(workspaceRoot, name);
+      return statSync(path).isFile() ? readFileSync(path, "utf8") : undefined;
+    } catch { return undefined; }
+  };
+  if (readProjectText("pytest.ini") !== undefined) return true;
+  const pyproject = readProjectText("pyproject.toml") ?? "";
+  if (/^\s*\[tool\.pytest(?:[.\]])/m.test(pyproject) || /(?:^\s*pytest(?:[-_.][A-Za-z0-9_.-]+)?\s*(?:[<=>~!; ,\]]|$)|["',]pytest(?:[-_.][A-Za-z0-9_.-]+)?\s*(?:[<=>~!; ,\]]|$))/im.test(pyproject)) return true;
+  const setupConfig = readProjectText("setup.cfg") ?? "";
+  if (/^\s*\[tool:pytest\]\s*$/im.test(setupConfig) || /(?:^\s*pytest(?:[-_.][A-Za-z0-9_.-]+)?\s*(?:[<=>~!; ,\]]|$)|["',]pytest(?:[-_.][A-Za-z0-9_.-]+)?\s*(?:[<=>~!; ,\]]|$))/im.test(setupConfig)) return true;
+  const toxConfig = readProjectText("tox.ini") ?? "";
+  if (/^\s*\[pytest\]\s*$/im.test(toxConfig) || /^\s*commands\s*=.*\bpytest\b/im.test(toxConfig)) return true;
+  for (const name of ["requirements.txt", "requirements-dev.txt", "requirements-test.txt", "dev-requirements.txt", "test-requirements.txt"]) {
+    const requirements = readProjectText(name) ?? "";
+    if (/^\s*pytest(?:[-_.][A-Za-z0-9_.-]+)?\s*(?:[<=>~!; ,]|$)/im.test(requirements)) return true;
+  }
+  return false;
 }
 
 async function runCommand(command: string, args: readonly string[], options: RunnerOptions): Promise<ProcessResult> {
@@ -735,18 +969,37 @@ function assertGitRoot(repositoryRoot: string, runner: RunnerOptions): "ready" |
   const git = resolveExecutable("git", repositoryRoot, runner.commandAvailability);
   if (!git) throw new Error("git is unavailable");
   const result = spawnSyncSafe(git, ["rev-parse", "--show-toplevel"], repositoryRoot, runner.timeoutMs);
+  if (result.errorCode) {
+    if (result.errorCode === "ETIMEDOUT") throw new Error("Git repository inspection timed out");
+    throw new Error(`Git repository inspection could not start (${result.errorCode})`);
+  }
+  if (result.signal) throw new Error(`Git repository inspection was interrupted (${result.signal})`);
   if (result.code !== 0 || !result.stdout.trim()) {
-    if (/not a git repository/i.test(result.stderr)) return "not_repository";
+    // Git diagnostics can be localized by the caller's locale. The probe below
+    // pins C locale, and only its known no-repository diagnostic is a domain
+    // outcome; spawn, timeout, signal and all other Git errors remain errors.
+    if (result.code === 128 && /not a git repository/i.test(result.stderr)) return "not_repository";
     throw new Error("Git repository inspection failed");
   }
   if (realpathSync(result.stdout.trim()) !== repositoryRoot) throw new Error("Git root does not match the selected repositoryRoot");
   return "ready";
 }
 
-function spawnSyncSafe(command: string, args: string[], cwd: string, timeout: number): { code: number | null; stdout: string; stderr: string } {
+function spawnSyncSafe(command: string, args: string[], cwd: string, timeout: number): { code: number | null; stdout: string; stderr: string; errorCode?: string; signal?: NodeJS.Signals | null } {
   // Keep this synchronous check tiny and argument-fixed; all task-facing commands use the bounded async runner.
-  const result = spawnSync(command, args, { cwd, encoding: "utf8", timeout, shell: false, env: sanitizedEnvironment(), stdio: ["ignore", "pipe", "pipe"] });
-  return { code: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+  const env = { ...sanitizedEnvironment(), LANG: "C", LC_ALL: "C" };
+  const result = spawnSync(command, args, { cwd, encoding: "utf8", timeout, shell: false, env, stdio: ["ignore", "pipe", "pipe"] });
+  const spawnError = result.error;
+  const errorCode = spawnError && "code" in spawnError && typeof spawnError.code === "string"
+    ? spawnError.code
+    : spawnError?.name;
+  return {
+    code: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    ...(errorCode ? { errorCode } : {}),
+    signal: result.signal,
+  };
 }
 
 function requireDirectory(path: string, label: string): string {
@@ -775,6 +1028,7 @@ function relativeInside(root: string, path: string): string {
 
 function resolveInside(root: string, path: string): string { return resolve(root, relativeInside(root, path)); }
 function isWithin(root: string, target: string): boolean { const rel = relative(root, target); return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)); }
+function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function record(value: unknown): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("tool input must be an object"); return value as Record<string, unknown>; }
 function stringValue(value: unknown, label: string): string { if (typeof value !== "string" || !value.trim()) throw new TypeError(`${label} must be a non-empty string`); return value; }
 function stringArray(value: unknown, label: string, min: number, max: number): string[] { if (!Array.isArray(value) || value.length < min || value.length > max || value.some((item) => typeof item !== "string" || !item.trim())) throw new TypeError(`${label} must contain ${min} to ${max} non-empty strings`); return value as string[]; }

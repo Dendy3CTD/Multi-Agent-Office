@@ -63,11 +63,15 @@ export interface OfficeTask {
   employeeId?: string
   updatedAt?: string
   errorCode?: string
+  errorMessage?: string
   officeStatus?: 'IDLE' | 'WORKING' | 'REVIEW' | 'BLOCKED' | 'ERROR' | 'COMPLETED'
   runtimeId?: string
   modelId?: string
   startedAt?: string
   resultSummary?: string
+  result?: unknown
+  toolCalls?: readonly unknown[]
+  rawStatus?: string
   artifactUrls?: readonly string[]
   subtasks?: readonly OfficeTask[]
   dependencies?: readonly string[]

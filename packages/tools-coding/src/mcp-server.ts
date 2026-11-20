@@ -1,7 +1,8 @@
 import { createInterface } from "node:readline";
-import { isAbsolute, resolve } from "node:path";
+import { lstatSync } from "node:fs";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCodingTools, enforceCodingToolInputCapabilities, filterCodingToolsByCapabilities } from "./index.js";
+import { createCodingTools, createCodeReviewSocketPort, enforceCodingToolInputCapabilities, filterCodingToolsByCapabilities, type CodeReviewPort } from "./index.js";
 
 interface McpLaunchOptions {
   readonly workspaceRoot: string;
@@ -10,13 +11,43 @@ interface McpLaunchOptions {
   readonly employeeCapabilities: readonly string[];
   readonly allowExternalWrites: boolean;
   readonly allowLocalGitWrites?: boolean;
+  readonly reviewSocketPath?: string;
+  readonly reviewSocketToken?: string;
 }
 
 export async function runCodingMcpServer(options: McpLaunchOptions): Promise<void> {
   if (!isAbsolute(options.workspaceRoot) || !isAbsolute(options.repositoryRoot) || !Array.isArray(options.allowedToolIds) || options.allowedToolIds.length > 64 || !Array.isArray(options.employeeCapabilities) || options.employeeCapabilities.length > 64) {
     throw new TypeError("Invalid task-scoped Coding Tools MCP configuration");
   }
-  const toolset = createCodingTools({ workspaceRoot: options.workspaceRoot, repositoryRoot: options.repositoryRoot, allowExternalWrites: options.allowExternalWrites === true, allowLocalGitWrites: options.allowLocalGitWrites === true });
+  const { reviewSocketPath, reviewSocketToken } = options;
+  if (reviewSocketPath !== undefined || reviewSocketToken !== undefined) {
+    if (!reviewSocketPath || !/^\/tmp\/mao-review-[a-zA-Z0-9]{6}\/review\.sock$/.test(reviewSocketPath) || !reviewSocketToken || !/^[a-f0-9]{64}$/.test(reviewSocketToken)) {
+      throw new TypeError("Invalid task-scoped CodeReviewPort socket configuration");
+    }
+  }
+  let codeReviewPort: CodeReviewPort | undefined;
+  if (reviewSocketPath && reviewSocketToken) {
+    const reviewer = createCodeReviewSocketPort(reviewSocketPath, reviewSocketToken);
+    codeReviewPort = {
+      async review(input) {
+        const directory = lstatSync(dirname(reviewSocketPath));
+        const socket = lstatSync(reviewSocketPath);
+        const uid = process.getuid?.();
+        if (!directory.isDirectory() || !socket.isSocket() || directory.uid !== uid || socket.uid !== uid ||
+            (directory.mode & 0o777) !== 0o700 || (socket.mode & 0o777) !== 0o600) {
+          return { status: "blocked", message: "The task review socket is not private to the host user." };
+        }
+        return reviewer.review(input);
+      },
+    };
+  }
+  const toolset = createCodingTools({
+    workspaceRoot: options.workspaceRoot,
+    repositoryRoot: options.repositoryRoot,
+    allowExternalWrites: options.allowExternalWrites === true,
+    allowLocalGitWrites: options.allowLocalGitWrites === true,
+    ...(codeReviewPort ? { codeReviewPort } : {}),
+  });
   const permitted = new Map<string, (input: unknown) => Promise<unknown> | unknown>();
   const filtered = new Map(filterCodingToolsByCapabilities(toolset.tools, options.employeeCapabilities).map(tool => [tool.id, tool]));
   for (const id of options.allowedToolIds) {
@@ -86,7 +117,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
     const raw = process.argv[2];
     if (!raw || raw.length > 32_000) throw new TypeError("Missing or oversized MCP launch options");
     const options: unknown = JSON.parse(raw);
-    if (!isRecord(options) || typeof options.workspaceRoot !== "string" || typeof options.repositoryRoot !== "string" || !Array.isArray(options.allowedToolIds) || options.allowedToolIds.some(value => typeof value !== "string") || !Array.isArray(options.employeeCapabilities) || options.employeeCapabilities.some(value => typeof value !== "string") || options.allowExternalWrites !== false || typeof options.allowLocalGitWrites !== "boolean") throw new TypeError("Invalid MCP launch options");
+    if (!isRecord(options) || typeof options.workspaceRoot !== "string" || typeof options.repositoryRoot !== "string" || !Array.isArray(options.allowedToolIds) || options.allowedToolIds.some(value => typeof value !== "string") || !Array.isArray(options.employeeCapabilities) || options.employeeCapabilities.some(value => typeof value !== "string") || options.allowExternalWrites !== false || typeof options.allowLocalGitWrites !== "boolean" || options.reviewSocketPath !== undefined && typeof options.reviewSocketPath !== "string" || options.reviewSocketToken !== undefined && typeof options.reviewSocketToken !== "string") throw new TypeError("Invalid MCP launch options");
     await runCodingMcpServer(options as unknown as McpLaunchOptions);
   } catch (error) {
     // The protocol owns stdout; diagnostics go to stderr only.

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { createCodexRuntime } from "../dist/index.js";
 import { createEventBus } from "@mao-hybrid/events";
 
-test("Codex Runtime exposes only task tools and auto-approves the four local read-only MCP tools", async (t) => {
+test("Codex Runtime exposes only task tools and narrowly approves the allowed Coding MCP tools", async (t) => {
   const scratch = await mkdtemp(join(tmpdir(), "mao-hybrid-mcp-runtime-"));
   const executable = join(scratch, "fake-codex");
   const argsFile = join(scratch, "args.json");
@@ -14,8 +14,9 @@ test("Codex Runtime exposes only task tools and auto-approves the four local rea
   await chmod(executable, 0o755);
   t.after(() => rm(scratch, { recursive: true, force: true }));
   const safeToolIds = ["coding.capabilities", "coding.git.status", "coding.git.diff", "coding.git.log"];
-  const allowedToolIds = [...safeToolIds, "coding.check.run", "coding.git.commit", "coding.github.prepare-pr", "coding.web.start"];
-  const serverOptions = { workspaceRoot: scratch, repositoryRoot: scratch, allowedToolIds, employeeCapabilities: ["coding"], allowExternalWrites: false, allowLocalGitWrites: true };
+  const approvedToolIds = ["coding.check.run", "coding.review.diff"];
+  const allowedToolIds = [...safeToolIds, ...approvedToolIds, "coding.git.commit", "coding.github.prepare-pr", "coding.web.start"];
+  const serverOptions = { workspaceRoot: scratch, repositoryRoot: scratch, allowedToolIds, approvedToolIds, employeeCapabilities: ["coding"], allowExternalWrites: false, allowLocalGitWrites: true };
   const runtime = createCodexRuntime({ executable, sandbox: "workspace-write" });
   const result = await runtime.execute({
     executionId: "exec-1", idempotencyKey: "exec-1",
@@ -28,10 +29,10 @@ test("Codex Runtime exposes only task tools and auto-approves the four local rea
       projectId: "project-1", taskId: "task-1", executionId: "exec-1", workspaceRoot: scratch,
       tools: [
         ...safeToolIds.map(id => ({ id, name: id, description: "read-only", inputSchema: { type: "object" }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } })),
-        ...["coding.check.run", "coding.git.commit", "coding.github.prepare-pr", "coding.web.start"].map(id => ({ id, name: id, description: "side effect or process", inputSchema: { type: "object" } })),
+        ...[...approvedToolIds, "coding.git.commit", "coding.github.prepare-pr", "coding.web.start"].map(id => ({ id, name: id, description: "task-scoped", inputSchema: { type: "object" } })),
       ],
       async invoke() { throw new Error("the MCP subprocess owns tool invocation"); },
-        mcpServers: [{ name: "mao_coding", command: process.execPath, args: ["/workspace/packages/tools-coding/dist/mcp-server.js", JSON.stringify(serverOptions)], allowedTools: allowedToolIds }],
+        mcpServers: [{ name: "mao_coding", command: process.execPath, args: ["/workspace/packages/tools-coding/dist/mcp-server.js", JSON.stringify(serverOptions)], allowedTools: allowedToolIds, approvedToolIds }],
     },
   });
   assert.equal(result.text, "mcp configured");
@@ -45,11 +46,11 @@ test("Codex Runtime exposes only task tools and auto-approves the four local rea
   assert.ok(args.includes(`mcp_servers.mao_coding.enabled_tools=${JSON.stringify(allowedToolIds)}`));
   assert.ok(args.includes('mcp_servers.mao_coding.default_tools_approval_mode="prompt"'));
   const approvalOverride = args[args.indexOf("--config", args.indexOf('mcp_servers.mao_coding.default_tools_approval_mode="prompt"')) + 1];
-  assert.equal(approvalOverride, `mcp_servers.mao_coding.tools={${safeToolIds.map(id => `${JSON.stringify(id)}={approval_mode="approve"}`).join(",")}}`);
+  assert.equal(approvalOverride, `mcp_servers.mao_coding.tools={${[...safeToolIds, ...approvedToolIds].map(id => `${JSON.stringify(id)}={approval_mode="approve"}`).join(",")}}`);
   for (const id of ["coding.capabilities", "coding.git.status", "coding.git.diff", "coding.git.log"]) {
-    assert.ok(approvalOverride.includes(`${JSON.stringify(id)}={approval_mode="approve"}`), `only the read-only tool ${id} should receive approval_mode=approve`);
+    assert.ok(approvalOverride.includes(`${JSON.stringify(id)}={approval_mode="approve"}`), `${id} should receive only its explicit per-tool approval`);
   }
-  for (const id of ["coding.check.run", "coding.git.commit", "coding.github.prepare-pr", "coding.web.start"]) {
+  for (const id of ["coding.git.commit", "coding.github.prepare-pr", "coding.web.start"]) {
     assert.ok(!approvalOverride.includes(JSON.stringify(id)), `${id} must retain the default prompt policy`);
   }
 });
@@ -78,28 +79,29 @@ test("Codex MCP tool JSONL items become named task events", async (t) => {
   assert.deepEqual(result.toolCalls, [{ id: "call-1", server: "mao_coding", toolId: "coding.check.run", status: "completed", result: { status: "passed" } }]);
 });
 
-test("Codex Runtime refuses a model claim when the required MCP call was rejected", async (t) => {
+test("Codex Runtime preserves a rejected required Coding MCP call instead of accepting a model claim", async (t) => {
   const scratch = await mkdtemp(join(tmpdir(), "mao-hybrid-mcp-rejected-"));
   const executable = join(scratch, "fake-codex");
-  await writeFile(executable, "#!/usr/bin/env node\nconst out = value => process.stdout.write(JSON.stringify(value) + '\\n'); out({type:'item.started',item:{id:'call-1',type:'mcp_tool_call',server:'mao_coding',tool:'coding.capabilities'}}); out({type:'item.completed',item:{id:'call-1',type:'mcp_tool_call',server:'mao_coding',tool:'coding.capabilities',status:'failed',error:{message:'MCP tool call requires approval, but approval policy is never'}}}); out({type:'item.completed',item:{type:'agent_message',text:'I called the tool successfully'}});\n");
+  await writeFile(executable, "#!/usr/bin/env node\nconst out = value => process.stdout.write(JSON.stringify(value) + '\\n'); out({type:'item.started',item:{id:'call-1',type:'mcp_tool_call',server:'mao_coding',tool:'coding.check.run'}}); out({type:'item.completed',item:{id:'call-1',type:'mcp_tool_call',server:'mao_coding',tool:'coding.check.run',status:'failed',error:{message:'MCP tool call requires approval, but approval policy is never'}}}); out({type:'item.completed',item:{type:'agent_message',text:'I called the check successfully'}});\n");
   await chmod(executable, 0o755);
   const events = createEventBus();
   const runtime = createCodexRuntime({ executable, events });
   t.after(() => rm(scratch, { recursive: true, force: true }));
   const result = await runtime.execute({
     executionId: "exec-rejected", idempotencyKey: "exec-rejected",
-    task: { id: "task-rejected", projectId: "project-1", title: "Read capabilities", brief: "Use coding capabilities", status: "running", createdAt: "now" },
-    step: { id: "work", title: "work", prompt: "Use coding.capabilities", employeeId: "developer-1" },
+    task: { id: "task-rejected", projectId: "project-1", title: "Run the required check", brief: "Use coding.check.run", status: "running", createdAt: "now" },
+    step: { id: "work", title: "work", prompt: "Use coding.check.run", employeeId: "developer-1" },
     project: { id: "project-1", name: "fixture", workspaceRoot: scratch },
     employee: { id: "developer-1", professionId: "developer", displayName: "Developer", status: "active", skills: ["coding"], instructions: "", specialization: "", departmentId: "software" },
     workingDirectory: scratch, signal: new AbortController().signal,
-    taskTools: { projectId: "project-1", taskId: "task-rejected", executionId: "exec-rejected", workspaceRoot: scratch, tools: [], mcpServers: [], requiredToolIds: ["coding.capabilities"], invoke: async () => undefined },
+    taskTools: { projectId: "project-1", taskId: "task-rejected", executionId: "exec-rejected", workspaceRoot: scratch, tools: [], mcpServers: [], requiredToolIds: ["coding.check.run"], invoke: async () => undefined },
   });
   assert.equal(result.status, "needs_review");
-  assert.equal(result.error, "mcp_tool_rejected:mao_coding/coding.capabilities");
+  assert.equal(result.error, "mcp_tool_rejected:mao_coding/coding.check.run");
   assert.equal(result.toolCalls[0].status, "rejected");
-  assert.equal(result.text, "I called the tool successfully");
-  assert.ok(events.list("task-rejected").some(event => event.type === "tool.rejected"));
+  assert.equal(result.toolCalls[0].error, "MCP tool call requires approval, but approval policy is never");
+  assert.equal(result.text, "I called the check successfully");
+  assert.ok(events.list("task-rejected").some(event => event.type === "tool.rejected" && event.data.toolName === "coding.check.run"));
 });
 
 test("Codex Runtime treats MCP result isError as failed even when the JSONL item says completed", async (t) => {

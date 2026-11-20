@@ -31,6 +31,7 @@ export interface RuntimePort {
     readonly employee: EmployeeProfile & { readonly role: ProfessionProfile };
     readonly workingDirectory: string; readonly employeeDirectory: string; readonly memoryFile: string; readonly memory: string;
     readonly signal: AbortSignal;
+    readonly readOnly?: boolean;
     readonly budget?: { readonly maxUsd: number; readonly currency: "USD" };
     readonly handoffs?: readonly { readonly stage: string; readonly artifact: Readonly<Record<string, unknown>> }[];
     readonly budgetCapUsd?: number;

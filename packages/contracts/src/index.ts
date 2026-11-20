@@ -120,12 +120,18 @@ export interface ToolSummary {
   readonly annotations?: ToolSafetyAnnotations;
 }
 
-/** The only Coding MCP tools Codex may auto-approve without an interactive prompt. */
+/** Coding MCP tools eligible for approval when their implementation is explicitly read-only. */
 export const CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS = Object.freeze([
   "coding.capabilities",
   "coding.git.status",
   "coding.git.diff",
   "coding.git.log",
+] as const);
+
+/** Exact task-scoped Coding tools approved under the existing workspace sandbox. */
+export const CODEX_AUTO_APPROVED_CODING_WORKSPACE_TOOLS = Object.freeze([
+  "coding.check.run",
+  "coding.review.diff",
 ] as const);
 
 /** Exact task-scoped electronics tools accepted for Codex CLI per-tool approval. */
@@ -200,6 +206,8 @@ export interface RuntimeExecutionInput {
   readonly memoryFile?: string;
   readonly memory?: string;
   readonly signal: AbortSignal;
+  /** Requests a stricter per-execution Codex sandbox; it can never widen the Runtime's configured sandbox. */
+  readonly readOnly?: boolean;
   readonly budget?: { readonly maxUsd: number; readonly currency: "USD" };
   /** Task-scoped tool surface selected by the host from employee capabilities. */
   readonly taskTools?: RuntimeTaskToolContext;

@@ -2,7 +2,7 @@ import { accessSync, constants, existsSync } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 import { relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline";
-import { CODEX_AUTO_APPROVED_CAD_TOOLS, CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS, CODEX_AUTO_APPROVED_ELECTRONICS_TOOLS, type RuntimeAdapter, type RuntimeExecutionInput, type RuntimeMcpServerConfig, type RuntimeResult, type RuntimeToolCallEvidence, type ToolSummary } from "@mao-hybrid/contracts";
+import { CODEX_AUTO_APPROVED_CAD_TOOLS, CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS, CODEX_AUTO_APPROVED_CODING_WORKSPACE_TOOLS, CODEX_AUTO_APPROVED_ELECTRONICS_TOOLS, type RuntimeAdapter, type RuntimeExecutionInput, type RuntimeMcpServerConfig, type RuntimeResult, type RuntimeToolCallEvidence, type ToolSummary } from "@mao-hybrid/contracts";
 import type { EventBus } from "@mao-hybrid/events";
 
 export type CodexSandbox = "read-only" | "workspace-write";
@@ -35,8 +35,10 @@ export function createCodexRuntime(options: CodexRuntimeOptions): CodexRuntime {
     async execute(input: RuntimeExecutionInput): Promise<RuntimeResult> {
       if (!executable) return { status: "failed", error: "codex_executable_unavailable", executionState: "terminated" };
       if (!isAbsoluteWorkspace(input.workingDirectory)) return { status: "failed", error: "workspace_path_invalid", executionState: "terminated" };
-      const args = ["exec", "--json", "--sandbox", sandbox, "--cd", input.workingDirectory, "--skip-git-repo-check"];
+      const effectiveSandbox = sandbox === "read-only" || input.readOnly === true ? "read-only" : "workspace-write";
+      const args = ["exec", "--json", "--sandbox", effectiveSandbox, "--cd", input.workingDirectory, "--skip-git-repo-check"];
       if (options.model) args.push("--model", options.model);
+      if (input.readOnly === true && !input.taskTools) args.push("--config", 'mcp_servers.mao_coding.enabled=false');
       const exposedTools = new Set(input.taskTools?.tools.map(tool => tool.id) ?? []);
       const mcpServers = input.taskTools?.mcpServers ?? [];
       if (new Set(mcpServers.map(server => server.name)).size !== mcpServers.length || new Set(mcpServers.flatMap(server => server.allowedTools)).size !== mcpServers.reduce((count, server) => count + server.allowedTools.length, 0)) {
@@ -67,11 +69,14 @@ export function createCodexRuntime(options: CodexRuntimeOptions): CodexRuntime {
         args.push("--config", `mcp_servers.${server.name}.default_tools_approval_mode="prompt"`);
         if (["mao_coding", "mao_electronics", "mao_cad"].includes(server.name)) {
           const summaries = new Map(input.taskTools?.tools.map(tool => [tool.id, tool]) ?? []);
-          const autoApprovedTools = server.name === "mao_coding"
+          const autoApprovedReadOnlyTools = server.name === "mao_coding"
             ? server.allowedTools.filter(toolId => {
               const annotations = summaries.get(toolId)?.annotations;
               return (CODEX_AUTO_APPROVED_CODING_READ_ONLY_TOOLS as readonly string[]).includes(toolId) && annotations?.readOnlyHint === true && annotations.destructiveHint !== true && annotations.openWorldHint !== true;
             })
+            : [];
+          const autoApprovedTools = server.name === "mao_coding"
+            ? [...autoApprovedReadOnlyTools, ...validateApprovedCodingTools(server, summaries)]
             : server.name === "mao_electronics" ? validateApprovedElectronicsTools(server, summaries) : validateApprovedCadTools(server, summaries);
           // Codex CLI dotted-path overrides split every `.` in a key; a tool ID
           // like `coding.git.status` must be placed inside a TOML inline table
@@ -156,27 +161,38 @@ export function createCodexRuntime(options: CodexRuntimeOptions): CodexRuntime {
           emit("runtime.failed", { code: "codex_execution_failed" });
           return { status: "failed", error: spawnFailed ? "codex_spawn_failed" : "codex_execution_failed", executionState: result.signal === null && result.code !== null ? "terminated" : "unknown", toolCalls: [...toolCalls.values()] };
         }
-        const failedToolCall = [...toolCalls.values()].find(call => call.status !== "completed");
+        const history = [...toolCalls.values()];
+        const requiredTools = input.taskTools?.requiredToolIds ?? [];
+        const isCodingCheck = (call: RuntimeToolCallEvidence) => call.server === "mao_coding" && call.toolId === "coding.check.run";
+        const lastCheck = requiredTools.includes("coding.check.run") ? history.filter(isCodingCheck).at(-1) : undefined;
+        const acceptedCalls = lastCheck ? history.filter(call => !isCodingCheck(call) || call === lastCheck) : history;
+        const failedToolCall = acceptedCalls.find(call => call.status !== "completed");
         if (failedToolCall) {
           const error = `mcp_tool_${failedToolCall.status}:${failedToolCall.server}/${failedToolCall.toolId}`;
           emit("runtime.needs_review", { code: error });
-          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: [...toolCalls.values()] };
+          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: history };
         }
-        const blockedToolCall = [...toolCalls.values()].find(call => isToolResultBlocked(call.result));
+        const blockedToolCall = acceptedCalls.find(call => isToolResultBlocked(call.result));
         if (blockedToolCall) {
           const reasonCode = isRecord(blockedToolCall.result) && typeof blockedToolCall.result.reasonCode === "string" ? `:${blockedToolCall.result.reasonCode}` : "";
           const error = `mcp_tool_blocked:${blockedToolCall.server}/${blockedToolCall.toolId}${reasonCode}`;
           emit("runtime.needs_review", { code: error });
-          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: [...toolCalls.values()] };
+          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: history };
         }
-        const requiredTool = input.taskTools?.requiredToolIds?.find(requiredId => ![...toolCalls.values()].some(call => call.status === "completed" && call.toolId === requiredId));
+        const requiredTool = requiredTools.find(requiredId => !acceptedCalls.some(call => call.status === "completed" && call.toolId === requiredId &&
+          (requiredId !== "coding.check.run" || isCodingCheck(call))));
         if (requiredTool) {
           const error = `required_mcp_tool_not_executed:${requiredTool}`;
           emit("runtime.needs_review", { code: error });
-          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: [...toolCalls.values()] };
+          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: history };
+        }
+        if (lastCheck && (!isRecord(lastCheck.result) || lastCheck.result.status !== "passed" || lastCheck.result.exitCode !== 0)) {
+          const error = "required_mcp_tool_outcome_unverified:coding.check.run";
+          emit("runtime.needs_review", { code: error });
+          return { status: "needs_review", error, text: response, result: { text: response }, executionState: "terminated", toolCalls: history };
         }
         emit("runtime.completed", { result: response });
-        return { status: "completed", text: response, result: { text: response }, executionState: "terminated", toolCalls: [...toolCalls.values()] };
+        return { status: "completed", text: response, result: { text: response }, executionState: "terminated", toolCalls: history };
       } catch {
         emit("runtime.failed", { code: "codex_execution_failed" });
         return { status: "failed", error: "codex_execution_failed", executionState: "unknown" };
@@ -224,6 +240,8 @@ function isTrustedCodingServer(server: RuntimeMcpServerConfig, input: RuntimeExe
   if (!isRecord(options) || options.workspaceRoot !== input.project.workspaceRoot || options.allowExternalWrites !== false || typeof options.allowLocalGitWrites !== "boolean" || !Array.isArray(options.allowedToolIds) || !Array.isArray(options.employeeCapabilities) || options.employeeCapabilities.some(value => typeof value !== "string")) return false;
   const allowed = options.allowedToolIds;
   if (allowed.some(value => typeof value !== "string") || allowed.length !== server.allowedTools.length || allowed.some((value, index) => value !== server.allowedTools[index])) return false;
+  const approved = options.approvedToolIds;
+  if (!Array.isArray(approved) || approved.length !== (server.approvedToolIds?.length ?? 0) || approved.some((value, index) => value !== server.approvedToolIds?.[index])) return false;
   const repositoryRoot = options.repositoryRoot;
   if (typeof repositoryRoot !== "string" || !isAbsoluteWorkspace(repositoryRoot)) return false;
   const relativeRoot = relative(resolve(input.project.workspaceRoot), resolve(repositoryRoot));
@@ -249,6 +267,12 @@ function isTrustedCadServer(server: RuntimeMcpServerConfig, input: RuntimeExecut
   const approved = options.approvedToolIds;
   return Array.isArray(approved) && approved.length === (server.approvedToolIds?.length ?? 0) && approved.every((value, index) => value === server.approvedToolIds?.[index]);
 }
+function validateApprovedCodingTools(server: RuntimeMcpServerConfig, summaries: Map<string, ToolSummary>): string[] {
+  const approved = server.approvedToolIds ?? [];
+  if (approved.length > 2 || new Set(approved).size !== approved.length || approved.some(id => !(CODEX_AUTO_APPROVED_CODING_WORKSPACE_TOOLS as readonly string[]).includes(id) || !server.allowedTools.includes(id) || !summaries.has(id))) throw new TypeError("task_coding_approval_config_invalid");
+  return [...approved];
+}
+
 function validateApprovedElectronicsTools(server: RuntimeMcpServerConfig, summaries: Map<string, ToolSummary>): string[] {
   const approved = server.approvedToolIds ?? [];
   if (approved.length > 8 || new Set(approved).size !== approved.length || approved.some(id => !(CODEX_AUTO_APPROVED_ELECTRONICS_TOOLS as readonly string[]).includes(id) || !server.allowedTools.includes(id) || !summaries.has(id))) throw new TypeError("task_electronics_approval_config_invalid");

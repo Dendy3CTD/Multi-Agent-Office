@@ -37,7 +37,7 @@ Git status, diff, log, local branch creation, and selected-path commits are boun
 
 Local sites can be started only from host-configured `localServers`, with loopback URL templates. The browser adapters require an explicit origin allowlist. Playwright connects over loopback CDP when supplied by the host. The API currently does not inject browser or reviewer ports, so those tool calls return explicit blocked results until host configuration is added.
 
-`coding.review.diff` performs a small deterministic scan and accepts a `CodeReviewPort` bound by the API host to the existing Codex Runtime and the current durable task context. Without that port, its overall status is `blocked` and it explicitly reports that substantive review did not run.
+`coding.review.diff` performs a small deterministic scan and delegates substantive review through a task-scoped Unix socket to the API host's existing Codex Runtime. The socket is created in a private host directory under `/tmp` to avoid the Unix socket pathname limit. It is protected by a task-local random token and removed after the Runtime step. The review diff excludes the workspace’s internal `.mao` directory. The review invocation uses the same Runtime and Codex configuration in read-only mode, with no task MCP tools attached, so it cannot recurse into `coding.review.diff`. The original HEAD-less/untracked diff remains part of the review input. A missing bridge, failed Runtime call, or response without explicit structured completion returns `blocked`; no findings alone are not treated as proof that review ran. The nested review report is returned inside the outer MCP result and therefore remains in the task's `toolCalls` and stored step result.
 
 ## Local verification
 

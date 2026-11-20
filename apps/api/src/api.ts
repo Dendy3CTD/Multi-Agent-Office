@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { realpath, mkdir } from "node:fs/promises";
+import { realpath, mkdir, stat } from "node:fs/promises";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { AgentEvent, RuntimeAdapter, RuntimeExecutionInput, RuntimeResult, RuntimeTaskToolContext, RuntimeToolCallEvidence, TaskScopedToolProvider } from "@mao-hybrid/contracts";
 import { createCompany, createDefaultRoster, type Company, type CompanyRoster, type RuntimeExecutionResult, type RuntimePort } from "@mao-hybrid/company";
 import { SqliteTaskStore, type SqliteTaskStore as SqliteTaskStoreType } from "@mao-hybrid/task-store";
 import { createEventBus, type EventBus } from "@mao-hybrid/events";
 import { listTools } from "@mao-hybrid/contracts";
-import { createTaskCodingDispatcher, listCodingToolSummaries } from "@mao-hybrid/tools-coding";
+import { codingCapabilitiesForEmployee, codingCheckFingerprint, createCodeReviewBridge, createTaskCodingDispatcher, listCodingToolSummaries, type CodeReviewPort } from "@mao-hybrid/tools-coding";
 import { createTaskElectronicsDispatcher } from "@mao-hybrid/tools-electronics";
 import { createTaskCadDispatcher } from "@mao-hybrid/tools-cad";
 import { createEngineeringConsistencyProvider } from "./engineering-consistency-provider.js";
@@ -203,6 +204,7 @@ export async function createApiServer(options: { config: ApiConfig; runtime: Api
 }
 
 function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTaskStoreType, providers: readonly TaskScopedToolProvider[]): RuntimePort {
+  let reviewSequence = 0;
   return {
     available: () => runtime.available(),
     supportsBudgetLimit: runtime.supportsBudgetLimit === true,
@@ -211,34 +213,59 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
         if (event.executionId !== input.executionId || !event.type.startsWith("tool.")) return;
         store.appendEvent(event.taskId, event.type, { executionId: event.executionId, data: event.data }, event.occurredAt);
       });
+      let reviewBridge: Awaited<ReturnType<typeof createCodeReviewBridge>> | undefined;
+      let codeReviewPort: CodeReviewPort | undefined;
       try {
+      const requestedToolIds = requestedToolsForStep(input);
+      const allowCodeReview = !input.readOnly && requestedToolIds.includes("coding.review.diff");
+      const codingEmployee = {
+        id: input.employee.id,
+        professionId: input.employee.professionId,
+        skills: input.employee.skills,
+        roleCapabilities: Array.isArray(input.employee.role.capabilityRequirements)
+          ? input.employee.role.capabilityRequirements.filter((capability: unknown): capability is string => typeof capability === "string")
+          : [],
+      };
+      if (allowCodeReview && codingCapabilitiesForEmployee(codingEmployee).some(capability =>
+        ["coding", "code-review", "security-review"].includes(capability))) {
+        try {
+          codeReviewPort = createRuntimeCodeReviewPort(runtime, input, () => ++reviewSequence);
+          reviewBridge = await createCodeReviewBridge(codeReviewPort);
+        } catch (cause) {
+          const code = isRecord(cause) && typeof cause.code === "string" ? cause.code : "review_bridge_unavailable";
+          events.publish({ taskId: input.task.id, executionId: input.executionId, type: "tools.unavailable", data: { toolIds: ["coding.review.diff"], code } });
+        }
+      }
       const taskTools = createTaskCodingDispatcher({
         projectId: input.project.id,
         taskId: input.task.id,
         executionId: input.executionId,
         workspaceRoot: input.project.workspaceRoot,
-        employee: { id: input.employee.id, professionId: input.employee.professionId, skills: input.employee.skills },
+        employee: codingEmployee,
+        allowCodeReview,
+        readOnly: input.readOnly === true,
+        ...(reviewBridge && codeReviewPort ? { codeReviewPort, reviewSocketPath: reviewBridge.socketPath, reviewSocketToken: reviewBridge.token } : {}),
       });
-      const electronicsTools = createTaskElectronicsDispatcher({
+      const electronicsTools = input.readOnly ? undefined : createTaskElectronicsDispatcher({
         projectId: input.project.id,
         taskId: input.task.id,
         executionId: input.executionId,
         workspaceRoot: input.project.workspaceRoot,
         employee: { id: input.employee.id, professionId: input.employee.professionId, skills: input.employee.skills },
       });
-      const cadTools = createTaskCadDispatcher({
+      const cadTools = input.readOnly ? undefined : createTaskCadDispatcher({
         projectId: input.project.id,
         taskId: input.task.id,
         executionId: input.executionId,
         workspaceRoot: input.project.workspaceRoot,
         employee: { id: input.employee.id, professionId: input.employee.professionId, skills: input.employee.skills },
       });
-      const providerInstances = providers.map(provider => provider.create({
+      const providerInstances = (input.readOnly ? [] : providers).map(provider => provider.create({
         projectId: input.project.id, taskId: input.task.id, executionId: input.executionId,
         workspaceRoot: input.project.workspaceRoot,
         employee: { id: input.employee.id, professionId: input.employee.professionId, skills: input.employee.skills },
       }));
-      const toolSummaries = [...taskTools.summaries, ...electronicsTools.summaries, ...cadTools.summaries, ...providerInstances.flatMap(provider => provider.summaries)];
+      const toolSummaries = [...taskTools.summaries, ...(electronicsTools?.summaries ?? []), ...(cadTools?.summaries ?? []), ...providerInstances.flatMap(provider => provider.summaries)];
       const forbiddenTools = toolSummaries.filter(tool => forbiddenAutomaticOperation(tool.id));
       if (forbiddenTools.length > 0) {
         events.publish({ taskId: input.task.id, executionId: input.executionId, type: "tools.unavailable", data: { employeeId: input.employee.id, forbiddenToolIds: forbiddenTools.map(tool => tool.id) } });
@@ -246,8 +273,8 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
       }
       const mcpServers = [
         ...(taskTools.tools.length > 0 ? [taskTools.mcpServer] : []),
-        ...(electronicsTools.tools.length > 0 ? [electronicsTools.mcpServer] : []),
-        ...(cadTools.mcpServer ? [cadTools.mcpServer] : []),
+        ...(electronicsTools?.tools.length ? [electronicsTools.mcpServer] : []),
+        ...(cadTools?.mcpServer ? [cadTools.mcpServer] : []),
         ...providerInstances.flatMap(provider => provider.mcpServers),
       ];
       assertNoToolConflicts(toolSummaries, mcpServers);
@@ -258,19 +285,9 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
         type: "tools.available",
         data: { employeeId: input.employee.id, toolIds: mcpServers.flatMap(server => server.allowedTools), serverNames: mcpServers.map(server => server.name), workspaceRoot: taskTools.workspaceRoot },
       });
-      const acceptanceCriteria = input.step.prompt.match(/(?:^|\n)Acceptance criteria:\s*([\s\S]*)$/i)?.[1] ?? "";
-      const requestText = `${input.task.title}\n${input.task.brief}\n${acceptanceCriteria}`;
-      const electronicsRequested = requestedElectronicsToolIds(requestText);
-      const cadRequested = requestedCadToolIds(requestText);
-      const platformioBuildRequested = electronicsRequested.includes("electronics.platformio.build");
-      const explicitCodingToolRequest = /\bcoding\.(?:check\.run|tools?)\b|coding\s+tools?\b/i.test(requestText);
-      const codingRequested = requestedCodingToolIds(requestText).filter(toolId => !(platformioBuildRequested && toolId === "coding.check.run" && !explicitCodingToolRequest));
-      const requestedToolIds = input.task.workflowId ? [] : [...codingRequested, ...electronicsRequested, ...cadRequested];
-      const requiredToolIdsFromPlan = input.step.requiredToolIds ?? [];
-      requestedToolIds.push(...requiredToolIdsFromPlan);
       const requiredToolIds = requestedToolIds.filter(toolId => taskToolIds.has(toolId));
       const missingRequestedTools = requestedToolIds.filter(toolId => !taskToolIds.has(toolId));
-      const capabilities = new Set(providers.flatMap(provider => provider.capabilities ?? []));
+      const capabilities = new Set(input.readOnly ? [] : providers.flatMap(provider => provider.capabilities ?? []));
       const missingCapabilities = (input.step.requiredCapabilities ?? []).filter(capability => !capabilities.has(capability) && !toolSummaries.some(tool => tool.capabilities?.includes(capability)));
       const taskToolContext: RuntimeTaskToolContext = {
         projectId: input.project.id,
@@ -282,8 +299,8 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
         requiredToolIds,
         invoke: async (toolId, toolInput) => {
           if (taskTools.tools.some(tool => tool.id === toolId)) return taskTools.invoke(toolId, toolInput);
-          if (electronicsTools.tools.some(tool => tool.id === toolId)) return electronicsTools.invoke(toolId, toolInput);
-          if (cadTools.tools.some(tool => tool.id === toolId)) return cadTools.invoke(toolId, toolInput);
+          if (electronicsTools?.tools.some(tool => tool.id === toolId)) return electronicsTools.invoke(toolId, toolInput);
+          if (cadTools?.tools.some(tool => tool.id === toolId)) return cadTools.invoke(toolId, toolInput);
           const owner = providerInstances.find(provider => provider.summaries.some(tool => tool.id === toolId));
           if (!owner) throw Object.assign(new Error("Task-scoped tool is not registered"), { code: "task_tool_unavailable" });
           return owner.invoke(toolId, toolInput);
@@ -293,17 +310,26 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
         events.publish({ taskId: input.task.id, executionId: input.executionId, type: "tools.unavailable", data: { employeeId: input.employee.id, requiredCapabilities: missingCapabilities } });
         return { status: "needs_review", error: `engineering_dependency_unavailable:${missingCapabilities.join(",")}`, executionState: "terminated" };
       }
-      if (missingRequestedTools.length > 0 && !["analyze", "review"].includes(input.step.id)) {
+      if (missingRequestedTools.length > 0 && (!["analyze", "review"].includes(input.step.id) ||
+        missingRequestedTools.some(toolId => input.step.requiredToolIds?.includes(toolId)))) {
         events.publish({ taskId: input.task.id, executionId: input.executionId, type: "tools.unavailable", data: { employeeId: input.employee.id, requiredToolIds: missingRequestedTools } });
         return { status: "needs_review", error: `required_mcp_tool_unavailable:${missingRequestedTools.join(",")}`, executionState: "terminated" };
       }
       const toolBoundary = toolSummaries.length === 0
         ? "MAO tool boundary: no Coding Tools are available to this employee in this step; Electronics and CAD tools are available only with their matching capabilities. Do not request or claim tool calls, code changes, or checks. Provide analysis only and hand off tool-dependent work to the assigned specialist step."
         : `MAO task-scoped tools: ${toolSummaries.map(tool => tool.id).join(", ")}.${requiredToolIds.length ? ` Required MCP tool execution for acceptance: ${requiredToolIds.join(", ")}. A text claim is not evidence; wait for and use the returned structured result.` : " Only claim tool work that appears in the actual MCP tool result."}`;
-      const prompt = `${toolBoundary}\n\n${input.step.prompt}`;
+      const prompt = input.readOnly
+        ? `${SOFTWARE_QA_INSTRUCTIONS}\n\n${input.step.prompt}`
+        : [
+          toolBoundary,
+          ...(requiredToolIds.includes("coding.check.run") ? ["If the check fails, fix the cause and rerun it. Run your final check after completing all project changes. If you edit files afterward, run the check again before reporting completion."] : []),
+          input.step.prompt,
+        ].join("\n\n");
       const result = await runtime.execute({ ...input, step: { ...input.step, prompt }, taskTools: taskToolContext } as unknown as RuntimeExecutionInput);
-      return enforceToolAcceptance(result, requiredToolIds, events.list(input.task.id).filter(event => event.executionId === input.executionId), input.project.procurementBudget);
+      const accepted = await enforceToolAcceptance(result, requiredToolIds, events.list(input.task.id).filter(event => event.executionId === input.executionId), input.project.workspaceRoot, input.project.procurementBudget);
+      return input.readOnly ? enforceSoftwareQaVerdict(accepted, input.project.workspaceRoot) : accepted;
       } finally {
+        if (reviewBridge) await reviewBridge.close().catch(() => undefined);
         unsubscribe();
       }
     },
@@ -315,15 +341,49 @@ function adaptRuntimePort(runtime: ApiRuntime, events: EventBus, store: SqliteTa
   };
 }
 
+function requestedToolsForStep(input: Parameters<RuntimePort["execute"]>[0]): string[] {
+  const planned = input.step.requiredToolIds ?? [];
+  if (input.task.workflowId || input.readOnly) return [...planned];
+  // A handoff can mention tool calls, but only the saved request and plan define tool requirements.
+  const requestText = [input.task.title, input.task.brief, ...(input.task.acceptanceCriteria ?? [])].join("\n");
+  const electronics = requestedElectronicsToolIds(requestText);
+  const platformioBuild = electronics.includes("electronics.platformio.build");
+  const explicitCodingToolRequest = /\bcoding\.(?:check\.run|tools?)\b|coding\s+tools?\b/i.test(requestText);
+  const isWorkStep = !["analyze", "review"].includes(input.step.id);
+  const coding = requestedCodingToolIds(requestText).filter(toolId => {
+    if (toolId === "coding.review.diff") return isWorkStep;
+    if (toolId === "coding.check.run") return isWorkStep && (!platformioBuild || explicitCodingToolRequest);
+    return true;
+  });
+  return [...new Set([...coding, ...electronics, ...requestedCadToolIds(requestText), ...planned])];
+}
+
 function requestedCodingToolIds(text: string): string[] {
   const requested: string[] = [];
+  const reviewIntent = text
+    .replace(/(?:\b(?:do not|don't|must not|never)\s+(?:use|call|run|invoke|require)\s+|\bwithout\s+(?:(?:using|calling|running|invoking)\s+)?|(?:не\s+(?:используй(?:те)?|использовать|вызывай(?:те)?|вызывать|запускай(?:те)?|запускать|требуется)|без(?:\s+вызова)?)\s+)`?coding\.review\.diff\b/giu, " ")
+    .replace(/\bcoding\.review\.diff`?\s+(?:is\s+not\s+(?:required|needed)|must\s+not\s+be\s+(?:used|called))/gi, " ");
+  if (/\bcoding\.review\.diff\b/i.test(reviewIntent)) requested.push("coding.review.diff");
   if (/\bcoding\.capabilities\b|\bcoding\s+(?:tools?\s+)?capabilities\b/i.test(text)) requested.push("coding.capabilities");
   if (/\b(git\s+status|working tree|current branch|изменени[яй]\s+в\s+git|статус\s+git)\b/i.test(text)) requested.push("coding.git.status");
   if (/\b(git\s+diff|show\s+(?:the\s+)?diff|просмотр\s+diff|diff\s+git)\b/i.test(text)) requested.push("coding.git.diff");
   if (/\b(git\s+log|commit history|истори[яю]\s+коммит)/i.test(text)) requested.push("coding.git.log");
-  if (/\b(tests?|testing|pytest|vitest|playwright|typecheck|lint|compile|build)\b|\b(?:run|execute|start)\s+(?:the\s+)?(?:checks?|tests?|test suite|build|typecheck|lint|compiler)\b|проверь(?:ть)?\s+(?:код|тесты|сборку)|запусти\s+(?:тесты|сборку|проверку)|прогони\s+тесты|тестировани[ея]|сборк[ау]/i.test(text)) requested.push("coding.check.run");
+  const checkIntent = withoutNegatedCheckRequests(text)
+    .replace(/\b(?:run|execute|call)\s+electronics\.[a-z0-9_.-]+\b/gi, " ");
+  const explicitCheckRun = /\bcoding\.check\.run\b/i.test(checkIntent) ||
+    /\b(?:run|execute|start|launch|rerun|re-run|verify|validate)\s+(?:(?:the|a|all|these|unit|integration|automated|full|python|javascript|typescript|rust|node(?:\.js)?)\s+)*(?:tests?|test suite|testing|checks?|unittest|pytest|vitest|playwright|typecheck|lint|build|compile|compiler)\b/i.test(checkIntent) ||
+    /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:test|build|lint|typecheck)\b|\bcargo\s+test\b|\bpython3?\s+-m\s+(?:unittest|pytest)\b|(?:^|\n)\s*(?:\$\s*)?(?:pytest|vitest|playwright)\b/i.test(checkIntent) ||
+    /\b(?:tests?|test suite|checks?|build|typecheck|lint)\s+(?:must|should|need to|have to)\s+(?:pass|succeed)\b|\b(?:tests?|test suite|checks?)\s+(?:pass|passing|succeed|succeeding)\b/i.test(checkIntent) ||
+    /(?:запусти|запустить|прогони|прогнать|выполни|выполнить|проведи|провести|проверь|проверить)\s+(?:(?:все|эти|юнит|интеграционные)\s+)?(?:тесты|проверки|сборку|линтер|typecheck|pytest)/iu.test(checkIntent);
+  if (explicitCheckRun) requested.push("coding.check.run");
   if (requested.length === 0 && /\bcoding\s+tools?\b|\bcoding\s+tool\b|инструмент(?:ы|ом)?\s+(?:для\s+)?(?:код|разработ)/i.test(text)) requested.push("coding.capabilities");
   return [...new Set(requested)];
+}
+
+function withoutNegatedCheckRequests(text: string): string {
+  return text
+    .replace(/\b(?:do not|don't|must not|never)\s+(?:run|execute|start|launch|rerun|re-run|verify|validate)\b[^.!?\n]*/gi, " ")
+    .replace(/не\s+(?:запускай|запускайте|запускать|прогоняй|прогоняйте|прогонять|выполняй|выполняйте|выполнять|проводи|проводите|проводить|проверяй|проверяйте|проверять)[^.!?\n]*/giu, " ");
 }
 
 function requestedElectronicsToolIds(text: string): string[] {
@@ -375,15 +435,95 @@ function forbiddenAutomaticOperation(toolId: string): boolean {
   return /(?:^|[._-])(?:purchase|purchasing|checkout|cart|buy|order|flash|flashing|upload|program-board|hardware-write|device-write|actuate|solder|high-voltage)(?:[._-]|$)/i.test(toolId);
 }
 
-function enforceToolAcceptance(result: RuntimeResult, requiredToolIds: readonly string[], events: readonly AgentEvent[], procurementBudget?: { readonly amount: number; readonly currency: string }): RuntimeResult {
+const SOFTWARE_QA_INSTRUCTIONS = [
+  "Independently inspect the actual implementation, tests, and other relevant files in the registered project workspace. Compare them with the task criteria and the persisted Analyst contract.",
+  "Review the persisted Developer tool results directly and distinguish them from the Developer's prose. A failed, blocked, missing, or unconfirmed result is not a successful validation.",
+  "This is a read-only review. Do not rerun the Developer's checks, call a nested review, or report a Developer check as a check you executed. State which Developer evidence you examined and report any gaps or findings with file paths.",
+  'Return exactly one JSON object with status "approved" or "needs_review", a non-empty summary, inspectedFiles (project-relative file paths actually read), and findings (an array of descriptions). Approve only when you inspected the files and confirmed the relevant criteria and evidence. If you cannot confirm them, return needs_review and explain why.',
+].join("\n");
+
+async function enforceSoftwareQaVerdict(result: RuntimeResult, workspaceRoot: string): Promise<RuntimeResult> {
   if (result.status !== "completed") return result;
-  const observed = [...(result.toolCalls ?? []), ...toolEvidenceFromEvents(events)];
-  const unsuccessful = observed.find(call => call.status !== "completed" || toolResultFailed(call.result));
+  let verdict: unknown;
+  try { verdict = JSON.parse(result.text ?? ""); } catch { /* No structured verdict was returned. */ }
+  if (isRecord(verdict) && verdict.status === "needs_review") {
+    return { ...result, status: "needs_review", error: "qa_findings_or_unconfirmed_validation" };
+  }
+  if (!isRecord(verdict) || verdict.status !== "approved" || !isString(verdict.summary) ||
+    !Array.isArray(verdict.findings) || verdict.findings.length || !Array.isArray(verdict.inspectedFiles) || !verdict.inspectedFiles.length) {
+    return { ...result, status: "needs_review", error: "qa_verdict_unconfirmed" };
+  }
+  const insideWorkspace = (path: string) => {
+    const local = relative(workspaceRoot, path);
+    return local !== "" && local !== ".." && !local.startsWith(`..${sep}`) && !isAbsolute(local);
+  };
+  for (const file of verdict.inspectedFiles) {
+    try {
+      if (isString(file) && !isAbsolute(file) && insideWorkspace(resolve(workspaceRoot, file))) {
+        const actualPath = await realpath(resolve(workspaceRoot, file));
+        if (insideWorkspace(actualPath) && (await stat(actualPath)).isFile()) continue;
+      }
+    } catch { /* The claimed file is not available in the project. */ }
+    return { ...result, status: "needs_review", error: "qa_inspected_file_unconfirmed" };
+  }
+  return result;
+}
+
+type ToolAcceptanceResult = RuntimeResult & {
+  readonly checkFingerprintDiagnostic?: {
+    readonly callId: string;
+    readonly reason: "missing_or_invalid_evidence" | "snapshot_unavailable" | "workspace_changed";
+    readonly expected?: string;
+    readonly observed?: string;
+  };
+};
+
+async function enforceToolAcceptance(result: RuntimeResult, requiredToolIds: readonly string[], events: readonly AgentEvent[], workspaceRoot: string, procurementBudget?: { readonly amount: number; readonly currency: string }): Promise<ToolAcceptanceResult> {
+  const reported = result.toolCalls ?? [];
+  const eventEvidence = toolEvidenceFromEvents(events);
+  const checkRequired = requiredToolIds.includes("coding.check.run");
+  if (checkRequired) {
+    const finishedChecks = new Set([...reported, ...eventEvidence].filter(isCodingCheck).map(call => call.id));
+    for (const event of events) {
+      if (event.type !== "tool.started" || !isCodingCheckEvent(event) || typeof event.data.itemId !== "string" ||
+        finishedChecks.has(event.data.itemId)) continue;
+      const id = event.data.itemId;
+      eventEvidence.push({ id, server: "mao_coding", toolId: "coding.check.run", status: "unknown" });
+      finishedChecks.add(id);
+    }
+  }
+  const supplemental = eventEvidence.filter(call => !reported.some(item =>
+    item.id === call.id && item.server === call.server && item.toolId === call.toolId));
+  if (supplemental.length > 0) result = { ...result, toolCalls: [...reported, ...supplemental] };
+  if (result.status !== "completed") return result;
+  const observed = [...reported, ...eventEvidence];
+  let lastCheck: RuntimeToolCallEvidence | undefined;
+  if (checkRequired) {
+    const runtimeChecks = reported.filter(isCodingCheck);
+    const extraChecks = supplemental.filter(isCodingCheck);
+    if (extraChecks.length) {
+      const positions = new Map<string, number>();
+      for (const event of events) {
+        if (!isCodingCheckEvent(event)) continue;
+        const id = typeof event.data.itemId === "string" ? event.data.itemId : `event-${event.id}`;
+        if (!positions.has(id)) positions.set(id, positions.size);
+      }
+      const allChecks = [...runtimeChecks, ...extraChecks];
+      if (allChecks.some(call => !positions.has(call.id))) {
+        return { ...result, status: "needs_review", error: "required_mcp_tool_order_unverified:coding.check.run" };
+      }
+      lastCheck = allChecks.sort((a, b) => positions.get(a.id)! - positions.get(b.id)!).at(-1);
+    } else {
+      lastCheck = runtimeChecks.at(-1);
+    }
+  }
+  const evaluated = checkRequired ? observed.filter(call => !isCodingCheck(call) || call.id === lastCheck?.id) : observed;
+  const unsuccessful = evaluated.find(call => call.status !== "completed" || toolResultFailed(call.result));
   if (unsuccessful) {
     const prefix = unsuccessful.status === "rejected" ? "mcp_tool_rejected" : unsuccessful.status === "failed" || toolResultFailed(unsuccessful.result) ? "mcp_tool_failed" : "mcp_tool_outcome_unverified";
     return { ...result, status: "needs_review", error: `${prefix}:${unsuccessful.server}/${unsuccessful.toolId}` };
   }
-  const blocked = observed.find(call => call.status === "completed" && toolResultBlocked(call.result));
+  const blocked = evaluated.find(call => call.status === "completed" && toolResultBlocked(call.result));
   if (blocked) {
     const reasonCode = isRecord(blocked.result) && typeof blocked.result.reasonCode === "string" ? `:${blocked.result.reasonCode}` : "";
     return { ...result, status: "needs_review", error: `mcp_tool_blocked:${blocked.server}/${blocked.toolId}${reasonCode}` };
@@ -393,9 +533,84 @@ function enforceToolAcceptance(result: RuntimeResult, requiredToolIds: readonly 
     const budgetIssue = validateProcurementBudgetResult(bomCall.result, procurementBudget);
     if (budgetIssue) return { ...result, status: "needs_review", error: `procurement_budget_${budgetIssue}` };
   }
-  const missing = requiredToolIds.find(toolId => !observed.some(call => call.status === "completed" && call.toolId === toolId));
+  const missing = requiredToolIds.find(toolId => toolId === "coding.check.run"
+    ? !lastCheck : !evaluated.some(call => call.status === "completed" && call.toolId === toolId));
   if (missing) return { ...result, status: "needs_review", error: `required_mcp_tool_not_executed:${missing}` };
+  if (lastCheck) {
+    const check = lastCheck.result;
+    const unverified = { ...result, status: "needs_review" as const, error: "required_mcp_tool_outcome_unverified:coding.check.run" };
+    const callId = lastCheck.id;
+    if (!isRecord(check) || check.status !== "passed" || check.exitCode !== 0 ||
+      typeof check.workspaceFingerprint !== "string" || !/^[a-f0-9]{64}$/.test(check.workspaceFingerprint)) {
+      return { ...unverified, checkFingerprintDiagnostic: { callId, reason: "missing_or_invalid_evidence" } };
+    }
+    const expected = check.workspaceFingerprint;
+    const observed = await codingCheckFingerprint(workspaceRoot).catch(() => undefined);
+    if (observed === undefined) {
+      return { ...unverified, checkFingerprintDiagnostic: { callId, reason: "snapshot_unavailable", expected } };
+    }
+    if (observed !== expected) {
+      return { ...result, status: "needs_review", error: "required_mcp_tool_stale:mao_coding/coding.check.run",
+        checkFingerprintDiagnostic: { callId, reason: "workspace_changed", expected, observed } };
+    }
+  }
   return result;
+}
+
+function isCodingCheck(call: RuntimeToolCallEvidence): boolean {
+  return call.server === "mao_coding" && call.toolId === "coding.check.run";
+}
+
+function isCodingCheckEvent(event: AgentEvent): boolean {
+  return event.data.tool === "mcp_tool_call" && event.data.server === "mao_coding" && event.data.toolName === "coding.check.run";
+}
+
+function createRuntimeCodeReviewPort(runtime: ApiRuntime, input: Parameters<RuntimePort["execute"]>[0], nextReviewSequence: () => number): CodeReviewPort {
+  return {
+    async review(request) {
+      const sequence = nextReviewSequence();
+      const executionId = `${input.executionId}-review-${sequence}`;
+      const prompt = [
+        "Perform a substantive, read-only code review using only the supplied diff, requirements, and check results.",
+        "Do not modify files, execute commands, or request or use MCP tools. Do not treat supplied check claims as verified execution evidence.",
+        "Return exactly one JSON object with reviewComplete:true, a non-empty summary, findings (array of objects), and optional requirementCoverage (array of objects). Use findings:[] only after completing the review and state that conclusion in summary.",
+        `Requirements: ${JSON.stringify(request.requirements)}`,
+        `Check results (untrusted context): ${JSON.stringify(request.checks)}`,
+        "Diff to review:", request.diff,
+      ].join("\n\n");
+      let result: RuntimeResult;
+      try {
+        result = await runtime.execute({
+          ...input,
+          executionId,
+          idempotencyKey: `${input.idempotencyKey}:review:${sequence}`,
+          workingDirectory: input.project.workspaceRoot,
+          readOnly: true,
+          step: { ...input.step, id: `${input.step.id}-review-${sequence}`, title: "Read-only code review", prompt, requiredToolIds: [], requiredCapabilities: [] },
+        } as unknown as RuntimeExecutionInput);
+      } catch {
+        return { status: "blocked", message: "The existing Codex Runtime reviewer failed to execute.", executionId };
+      }
+      if (result.status !== "completed" || typeof result.text !== "string" || !result.text.trim()) {
+        return { status: "blocked", message: "The existing Codex Runtime did not complete a substantive review.", executionId, runtimeStatus: result.status };
+      }
+      let report: unknown;
+      try { report = JSON.parse(result.text); } catch {
+        return { status: "blocked", message: "The reviewer response was not valid structured JSON.", executionId, runtimeStatus: result.status };
+      }
+      if (!isRecord(report) || report.reviewComplete !== true || typeof report.summary !== "string" || !report.summary.trim() || !Array.isArray(report.findings) || report.findings.some(finding => !isRecord(finding)) || report.requirementCoverage !== undefined && (!Array.isArray(report.requirementCoverage) || report.requirementCoverage.some(item => !isRecord(item)))) {
+        return { status: "blocked", message: "The reviewer response did not satisfy the explicit structured review contract.", executionId, runtimeStatus: result.status };
+      }
+      return {
+        status: "completed",
+        reviewComplete: true,
+        executionId,
+        summary: report.summary,
+        findings: report.findings as Readonly<Record<string, unknown>>[],
+        ...(Array.isArray(report.requirementCoverage) ? { requirementCoverage: report.requirementCoverage as Readonly<Record<string, unknown>>[] } : {}),
+      };
+    },
+  };
 }
 
 function createDurableEventBus(events: EventBus): EventBus {

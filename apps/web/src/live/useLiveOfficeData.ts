@@ -67,7 +67,11 @@ export async function loadLiveOfficeData(transport: LiveTransport, signal: Abort
       const response = records.find(record => record.task.id === taskId)
       if (!response) return undefined
       const step = response.steps?.[0]
-      return { ...response.task, employeeId: step?.employeeId, result: step?.result, error: step?.error ? { message: step.error } : undefined }
+      const stepResult = step?.result && typeof step.result === 'object' ? step.result as Record<string, unknown> : undefined
+      const taskResult = response.task.result
+      const result = step?.result ?? taskResult
+      const toolCalls = Array.isArray(stepResult?.toolCalls) ? stepResult.toolCalls : Array.isArray(response.task.toolCalls) ? response.task.toolCalls : []
+      return { ...response.task, employeeId: step?.employeeId, result, toolCalls, error: step?.error ? { message: step.error } : response.task.error }
     } catch { return undefined }
   }))
   const fetchedTasks: LiveTaskDTO[] = taskResponses.filter((task): task is NonNullable<typeof task> => task !== undefined)

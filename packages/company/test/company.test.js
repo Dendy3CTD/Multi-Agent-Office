@@ -43,6 +43,56 @@ test("Director routes KiCad, ngspice, embedded firmware, and voltage-divider req
   }
 });
 
+test("complex analysis and Python delivery routes Analyst, Developer, and QA with prerequisite handoffs", async () => {
+  const { root, store } = temporaryStore();
+  const dispatches = [];
+  try {
+    const roster = createDefaultRoster();
+    const company = createCompany({
+      store, roster,
+      runtime: { async execute(input) {
+        dispatches.push(input);
+        const text = input.step.id === "analyze"
+          ? "Analysis result: engineering.py exposes calculate_load(value)."
+          : input.step.id === "specialist-work"
+            ? "Developer result: engineering.py, pytest tests, and README were produced."
+            : "QA review complete.";
+        return { status: "completed", text };
+      } },
+    });
+    company.registerProject({ id: "python-routing", name: "Python routing", workspaceRoot: join(root, "workspace") });
+    const plan = company.submitTask({
+      projectId: "python-routing",
+      title: "Analyze requirements for a small engineering library",
+      brief: "First analyze and document the requirements, then implement the design and finish with QA.",
+      acceptanceCriteria: [
+        "Implement the Python package module engineering.py with a stable public function.",
+        "Add pytest tests and README.md documentation.",
+        "Run the tests and have QA review the delivered package.",
+      ],
+      complexity: "complex",
+      idempotencyKey: "complex-python-specialist-routing",
+    });
+
+    assert.equal(plan.directorPlan.specialistRoleId, "developer");
+    assert.deepEqual(plan.steps.map(step => step.roleId), ["analyst", "developer", "qa-engineer"]);
+    assert.deepEqual(plan.steps.map(step => step.dependsOn), [[], ["analyze"], ["specialist-work"]]);
+    assert.equal(roster.employees.find(employee => employee.id === plan.steps[0].employeeId).professionId, "analyst");
+    assert.equal(roster.employees.find(employee => employee.id === plan.steps[1].employeeId).professionId, "developer");
+    assert.equal(roster.employees.find(employee => employee.id === plan.steps[2].employeeId).professionId, "qa-engineer");
+
+    await company.runAvailable();
+    const saved = company.getTask(plan.task.id);
+    assert.equal(saved.task.status, "completed");
+    assert.deepEqual(dispatches.map(input => input.step.id), ["analyze", "specialist-work", "review"]);
+    assert.match(dispatches[1].step.prompt, /Analysis result: engineering\.py exposes calculate_load/);
+    assert.match(dispatches[2].step.prompt, /Developer result: engineering\.py, pytest tests, and README were produced/);
+  } finally {
+    store.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Director routes ESP32-C3 enclosure design to the CAD engineer", () => {
   const { root, store } = temporaryStore();
   try {
@@ -106,6 +156,74 @@ test("submitAndRun durably plans first and returns the runtime result", async ()
   } finally {
     store.close();
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a dependent step receives the persisted predecessor result after restart", async () => {
+  const { root, store } = temporaryStore();
+  let activeStore = store;
+  const dispatches = [];
+  const runtime = {
+    async execute(input) {
+      dispatches.push(input);
+      return { status: "completed", text: "Created greeting.py and verified the greet(name) contract." };
+    },
+    async inspect() { return { status: "unknown" }; },
+  };
+  try {
+    const company = createCompany({ store: activeStore, runtime });
+    company.registerProject({ id: "multi-step", name: "Multi-step", workspaceRoot: join(root, "workspace") });
+    const accepted = company.submitTask({
+      projectId: "multi-step", title: "Create a Python greeting package", brief: "Implement a small greeting module and then add tests and docs.",
+      complexity: "standard", idempotencyKey: "persisted-handoff",
+    });
+    const analysis = activeStore.claimNext();
+    assert.equal(analysis.step.id, "analyze");
+    const predecessorResult = { status: "completed", text: "Create greeting.py with greet(name), returning a personalized greeting. Keep the public function signature greet(name)." };
+    activeStore.markStepCompleted(accepted.task.id, "analyze", predecessorResult);
+    activeStore.close();
+
+    activeStore = new SqliteTaskStore({ filename: join(root, "tasks.sqlite"), maxConcurrent: 2 });
+    const restarted = createCompany({ store: activeStore, runtime });
+    await restarted.resume();
+
+    assert.equal(dispatches.length, 1);
+    assert.equal(dispatches[0].step.id, "specialist-work");
+    assert.match(dispatches[0].step.prompt, /persisted prerequisite output/i);
+    assert.match(dispatches[0].step.prompt, /greet\(name\)/);
+    assert.match(dispatches[0].step.prompt, /untrusted reference data/i);
+    assert.equal(restarted.getTask(accepted.task.id).task.status, "completed");
+    assert.deepEqual(restarted.getTask(accepted.task.id).steps[0].result, predecessorResult);
+  } finally {
+    try { activeStore.close(); } catch { /* store was closed before simulated restart */ }
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("failed or needs_review prerequisites keep dependent steps queued", async () => {
+  for (const outcome of [
+    { result: { status: "failed", error: "analysis failed", safeToRetry: false }, taskStatus: "failed" },
+    { result: { status: "needs_review", error: "analysis is ambiguous" }, taskStatus: "needs_review" },
+  ]) {
+    const { root, store } = temporaryStore();
+    const dispatches = [];
+    try {
+      const company = createCompany({ store, runtime: { async execute(input) { dispatches.push(input.step.id); return outcome.result; } } });
+      company.registerProject({ id: "blocked-dependency", name: "Blocked dependency", workspaceRoot: join(root, "workspace") });
+      const accepted = company.submitTask({
+        projectId: "blocked-dependency", title: "Plan then implement a Python module", brief: "First analyze requirements, then implement the module.",
+        complexity: "standard", idempotencyKey: `blocked-${outcome.taskStatus}`,
+      });
+      await company.runAvailable();
+      const saved = company.getTask(accepted.task.id);
+      assert.deepEqual(dispatches, ["analyze"]);
+      assert.equal(saved.task.status, outcome.taskStatus);
+      assert.equal(saved.steps[0].status, outcome.taskStatus);
+      assert.equal(saved.steps[1].status, "queued");
+    } finally {
+      store.close();
+      rmSync(root, { recursive: true, force: true });
+    }
   }
 });
 

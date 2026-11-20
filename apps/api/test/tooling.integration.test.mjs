@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApiServer } from "@mao-hybrid/api";
@@ -17,6 +17,116 @@ function callMcp(server, calls) {
   const output = execFileSync(server.command, server.args, { encoding: "utf8", input: messages.map(message => JSON.stringify(message)).join("\n") + "\n", timeout: 5_000 });
   return output.trim().split("\n").map(line => JSON.parse(line));
 }
+
+test("complex Python handoff requires a real Developer check and an independent QA verdict", async t => {
+  const scratch = await mkdtemp(join(tmpdir(), "mao-hybrid-python-handoff-"));
+  const workspace = join(scratch, "project");
+  await mkdir(workspace);
+  const events = createEventBus();
+  const dispatches = [];
+  const api = await createApiServer({
+    config: { port: 0, dataDirectory: join(scratch, "data") },
+    events,
+    runtime: {
+      available: () => true,
+      async execute(input) {
+        const { step, task, taskTools } = input;
+        dispatches.push(step.id);
+        const coding = taskTools.mcpServers.find(server => server.name === "mao_coding");
+        if (step.id === "analyze") {
+          assert.deepEqual(taskTools.requiredToolIds, []);
+          return { status: "completed", text: "Analyst contract: engineering.load(force, area) returns force / area. Tool reference: coding.review.diff." };
+        }
+        if (step.id === "specialist-work") {
+          assert.match(step.prompt, /Analyst contract: engineering\.load/);
+          const requiresReview = task.title === "Python delivery with explicit MCP review";
+          assert.deepEqual(taskTools.requiredToolIds, requiresReview ? ["coding.review.diff", "coding.check.run"] : ["coding.check.run"]);
+          assert.equal(coding.allowedTools.includes("coding.review.diff"), requiresReview);
+          const launch = JSON.parse(coding.args[1]);
+          assert.equal(Boolean(launch.reviewSocketPath), requiresReview);
+          await writeFile(join(workspace, "engineering.py"), "def load(force, area):\n    return force / area\n");
+          await writeFile(join(workspace, "test_engineering.py"), "import unittest\nfrom engineering import load\n\nclass LoadTest(unittest.TestCase):\n    def test_load(self):\n        self.assertEqual(load(12, 3), 4)\n");
+          const calls = [{ name: "coding.check.run", arguments: { check: "python-test" } }];
+          if (requiresReview) calls.push({ name: "coding.review.diff", arguments: {} });
+          if (task.title !== "Python delivery without check evidence") {
+            const exchange = callMcp(coding, calls);
+            for (const [index, call] of calls.entries()) {
+              const result = exchange.find(message => message.id === index + 3).result.structuredContent;
+              assert.equal(result.status, index === 0 ? "passed" : "blocked");
+              events.publish({ taskId: task.id, executionId: input.executionId, type: "tool.completed", data: {
+                tool: "mcp_tool_call", itemId: `developer-${index}`, server: "mao_coding", toolName: call.name, result,
+              } });
+            }
+          }
+          return { status: "completed", text: "Developer delivered engineering.py and test_engineering.py. No coding.review.diff was used for ordinary QA." };
+        }
+        assert.equal(step.id, "review", "QA is a separate planned execution");
+        assert.equal(input.employee.professionId, "qa-engineer");
+        assert.equal(input.readOnly, true);
+        assert.deepEqual(taskTools.requiredToolIds, []);
+        assert.ok(!coding?.allowedTools.includes("coding.review.diff"));
+        assert.ok(!coding?.allowedTools.includes("coding.check.run"));
+        assert.match(step.prompt, /Analyst contract: engineering\.load/);
+        assert.match(step.prompt, /Developer delivered engineering\.py/);
+        assert.match(step.prompt, /developer-0/);
+        assert.match(step.prompt, /Ran 1 test/);
+        if (task.title === "Python delivery with unconfirmed QA") {
+          return { status: "completed", text: "All tests passed, as Developer reported." };
+        }
+        const source = await readFile(join(input.workingDirectory, "engineering.py"), "utf8");
+        const tests = await readFile(join(input.workingDirectory, "test_engineering.py"), "utf8");
+        assert.match(source, /return force \/ area/);
+        assert.match(tests, /assertEqual\(load\(12, 3\), 4\)/);
+        const findings = task.title === "Python delivery with QA findings" ? ["Zero area is not covered by the tests."] : [];
+        return { status: "completed", text: JSON.stringify({
+          status: findings.length ? "needs_review" : "approved",
+          summary: "Inspected the implementation and tests. Examined Developer's unittest result.",
+          inspectedFiles: ["engineering.py", "test_engineering.py"],
+          findings,
+        }) };
+      },
+    },
+  });
+  t.after(async () => { await api.close(); await rm(scratch, { recursive: true, force: true }); });
+  api.company.registerProject({ id: "python-handoff", name: "Python handoff", workspaceRoot: workspace });
+  const submit = (title, extraCriterion = []) => api.company.submitAndRun({
+    projectId: "python-handoff", title, complexity: "complex",
+    brief: "Analyze the load calculation contract, implement a Python module, add tests, and have QA inspect the result.",
+    acceptanceCriteria: ["Run the Python tests and retain the test output.", ...extraCriterion],
+  });
+
+  const approved = await submit("Python delivery with independent QA");
+  assert.deepEqual(dispatches.splice(0), ["analyze", "specialist-work", "review"]);
+  assert.deepEqual(approved.steps.map(step => step.roleId), ["analyst", "developer", "qa-engineer"]);
+  assert.deepEqual(approved.steps.map(step => step.status), ["completed", "completed", "completed"]);
+  assert.equal(approved.task.status, "completed");
+  const saved = api.store.getTask(approved.task.id);
+  assert.deepEqual(saved.steps[1].result.toolCalls.map(call => [call.id, call.toolId, call.result.status]), [["developer-0", "coding.check.run", "passed"]]);
+
+  const missing = await submit("Python delivery without check evidence", ["Do not use coding.review.diff for this task."]);
+  assert.deepEqual(dispatches.splice(0), ["analyze", "specialist-work"]);
+  assert.equal(missing.steps[1].error, "required_mcp_tool_not_executed:coding.check.run");
+  assert.equal(missing.steps[2].status, "queued");
+
+  const flagged = await submit("Python delivery with QA findings");
+  assert.deepEqual(dispatches.splice(0), ["analyze", "specialist-work", "review"]);
+  assert.equal(flagged.task.status, "needs_review");
+  assert.match(flagged.steps[2].result.text, /Zero area is not covered/);
+
+  const unconfirmed = await submit("Python delivery with unconfirmed QA");
+  assert.deepEqual(dispatches.splice(0), ["analyze", "specialist-work", "review"]);
+  assert.equal(unconfirmed.task.status, "needs_review");
+  assert.equal(unconfirmed.steps[2].error, "qa_verdict_unconfirmed");
+
+  await t.test("an explicitly requested MCP review returning blocked prevents completion", async () => {
+    const blocked = await submit("Python delivery with explicit MCP review", ["Call coding.review.diff and retain its structured result."]);
+    assert.deepEqual(dispatches.splice(0), ["analyze", "specialist-work"]);
+    assert.equal(blocked.task.status, "needs_review");
+    assert.deepEqual(blocked.steps.map(step => step.status), ["completed", "needs_review", "queued"]);
+    assert.equal(blocked.steps[1].error, "mcp_tool_blocked:mao_coding/coding.review.diff");
+    assert.equal(blocked.steps[1].result.toolCalls.find(call => call.toolId === "coding.review.diff").result.status, "blocked");
+  });
+});
 
 test("API gives only the selected developer task a workspace-bound Coding Tools MCP dispatcher", async (t) => {
   const scratch = await mkdtemp(join(tmpdir(), "mao-hybrid-coding-api-"));
@@ -168,6 +278,49 @@ test("API gives only the selected developer task a workspace-bound Coding Tools 
   assert.equal(analystTask.steps[1].status, "completed", JSON.stringify(analystTask.steps[1]));
   assert.ok(receivedInputs.some(input => input.step.id === "analyze" && input.taskTools.tools.length === 0));
   assert.ok(receivedInputs.some(input => input.step.id === "specialist-work" && input.taskTools.tools.some(tool => tool.id === "coding.git.status")));
+});
+
+test('API forwards declared code capability so the Developer receives required Coding MCP tools', async (t) => {
+  const scratch = await mkdtemp(join(tmpdir(), 'mao-hybrid-role-code-capability-'));
+  const workspace = join(scratch, 'project');
+  await mkdir(workspace);
+  const roster = createDefaultRoster();
+  const developer = roster.employees.find(employee => employee.professionId === 'developer');
+  assert.ok(developer);
+  const developerRole = roster.professions.find(item => item.id === 'developer');
+  assert.ok(developerRole?.capabilityRequirements.includes('code'));
+  const received = [];
+  const events = createEventBus();
+  const api = await createApiServer({
+    config: { host: '127.0.0.1', port: 0, dataDirectory: join(scratch, 'data') },
+    roster,
+    events,
+    runtime: {
+      available: () => true,
+      async execute(input) {
+        received.push(input);
+        assert.ok(input.taskTools.tools.some(tool => tool.id === 'coding.check.run'));
+        assert.ok(input.taskTools.requiredToolIds.includes('coding.check.run'));
+        assert.ok(input.taskTools.mcpServers.find(server => server.name === 'mao_coding')?.allowedTools.includes('coding.check.run'));
+        return { status: 'needs_review', error: 'test_verified_tool_composition_without_execution', executionState: 'terminated' };
+      },
+    },
+  });
+  t.after(async () => { await api.close(); await rm(scratch, { recursive: true, force: true }); });
+  api.company.registerProject({ id: 'role-code-capability', name: 'Role code capability', workspaceRoot: workspace });
+  const created = api.store.createTaskPlan({
+    request: { projectId: 'role-code-capability', title: 'Implement backend feature', brief: 'Implement the API change and run tests.', complexity: 'standard', acceptanceCriteria: ['Run tests and report their result.'] },
+    steps: [{ id: 'specialist-work', title: 'Specialist work', prompt: 'Implement the requested code. Acceptance criteria: Run tests and report their result.', roleId: 'developer', employeeId: developer.id, dependsOn: [] }],
+  });
+  await api.company.runAvailable();
+  const stored = api.store.getTask(created.task.id);
+  assert.equal(received.length, 1, 'the task reaches Runtime instead of being rejected as unavailable before dispatch');
+  assert.equal(received[0].employee.id, developer.id);
+  assert.equal(received[0].employee.professionId, 'developer');
+  assert.equal(received[0].employee.role.id, 'developer');
+  assert.ok(received[0].employee.role.capabilityRequirements.includes('code'));
+  assert.equal(stored.steps[0].status, 'needs_review', 'tool registration alone must not mark the task completed');
+  assert.match(stored.steps[0].error, /test_verified_tool_composition_without_execution/);
 });
 
 test("API composes electronics MCP only for the selected electronics engineer and requires its real result", async (t) => {

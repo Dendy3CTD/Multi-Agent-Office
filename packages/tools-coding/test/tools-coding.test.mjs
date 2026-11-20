@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
 import test from 'node:test';
 import { listTools } from '@mao-hybrid/contracts';
-import { createCodingTools, createPlaywrightBrowserPort, createTaskCodingDispatcher, filterCodingToolsByCapabilities } from '../dist/index.js';
+import { codingCheckFingerprint, createCodingTools, createPlaywrightBrowserPort, createTaskCodingDispatcher, filterCodingToolsByCapabilities } from '../dist/index.js';
 
 function workspace() {
   const root = mkdtempSync(join(tmpdir(), 'mao-coding-tools-'));
@@ -23,6 +23,38 @@ function tool(set, id) {
   assert.ok(value, `missing tool ${id}`);
   return value;
 }
+
+test('fingerprints project bytes and symlink targets independently of Python caches and file replacement', async t => {
+  const scratch = mkdtempSync(join(tmpdir(), 'mao-coding-fingerprint-'));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const root = join(scratch, 'project');
+  mkdirSync(root);
+  const outside = join(scratch, 'outside.py');
+  writeFileSync(outside, 'outside content\n');
+  symlinkSync(outside, join(root, 'linked.py'));
+  const significant = ['engineering.py', 'README.md', 'pyproject.toml', '.gitignore'];
+  for (const path of significant) writeFileSync(join(root, path), 'original\n');
+  const baseline = await codingCheckFingerprint(root);
+
+  for (const directory of ['__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache']) {
+    mkdirSync(join(root, directory));
+    writeFileSync(join(root, directory, 'cache-entry'), 'generated\n');
+  }
+  writeFileSync(join(root, 'standalone.pyc'), 'generated\n');
+  writeFileSync(join(root, 'replacement'), 'original\n');
+  renameSync(join(root, 'replacement'), join(root, 'engineering.py'));
+  writeFileSync(outside, 'different outside content\n');
+  assert.equal(await codingCheckFingerprint(root), baseline);
+
+  for (const path of significant) {
+    writeFileSync(join(root, path), 'modified\n');
+    assert.notEqual(await codingCheckFingerprint(root), baseline, path);
+    writeFileSync(join(root, path), 'original\n');
+  }
+  rmSync(join(root, 'linked.py'));
+  symlinkSync(join(scratch, 'different-target.py'), join(root, 'linked.py'));
+  assert.notEqual(await codingCheckFingerprint(root), baseline);
+});
 
 test('exposes coding capabilities through the existing ToolSummary input schema', () => {
   const root = workspace();
@@ -59,9 +91,13 @@ test('creates a developer-only task dispatcher that enforces tool IDs and the re
     assert.ok(developer.tools.some(entry => entry.id === 'coding.check.run'));
     assert.ok(developer.tools.some(entry => entry.id === 'coding.git.status'));
     assert.ok(developer.tools.some(entry => entry.id === 'coding.git.branch.create'));
+    assert.deepEqual(developer.mcpServer.approvedToolIds, ['coding.check.run', 'coding.review.diff']);
+    assert.deepEqual(JSON.parse(developer.mcpServer.args[1]).approvedToolIds, developer.mcpServer.approvedToolIds);
     assert.ok(!developer.tools.some(entry => entry.id === 'coding.github.push'));
     assert.equal(analyst.tools.length, 0);
     assert.ok(qa.tools.some(entry => entry.id === 'coding.check.run'));
+    assert.deepEqual(qa.mcpServer.approvedToolIds, ['coding.check.run']);
+    assert.deepEqual(analyst.mcpServer.approvedToolIds, []);
     await assert.rejects(qa.invoke('coding.check.run', { check: 'rust-test' }), error => error.code === 'tool_capability_denied');
     const result = await developer.invoke('coding.check.run', { check: 'javascript-test', paths: ['sum.test.js'] });
     assert.equal(result.status, 'passed');
@@ -72,6 +108,31 @@ test('creates a developer-only task dispatcher that enforces tool IDs and the re
     assert.equal(developer.mcpServer.allowedTools.includes('coding.github.push'), false);
     assert.equal(developer.workspaceRoot, root);
   } finally { rmSync(root, { recursive: true, force: true }); rmSync(other, { recursive: true, force: true }); }
+});
+
+test('grants the declared code capability to a backend developer task MCP without widening other roles', () => {
+  const root = workspace();
+  try {
+    const backendDeveloper = createTaskCodingDispatcher({
+      projectId: 'backend-project', taskId: 'backend-task', executionId: 'backend-execution', workspaceRoot: root,
+      employee: { professionId: 'backend-developer', skills: ['backend', 'api'], roleCapabilities: ['code'] },
+    });
+    const unqualifiedSpecialist = createTaskCodingDispatcher({
+      projectId: 'other-project', taskId: 'other-task', executionId: 'other-execution', workspaceRoot: root,
+      employee: { professionId: 'backend-developer', skills: ['backend', 'api'] },
+    });
+    assert.ok(backendDeveloper.tools.some(entry => entry.id === 'coding.check.run'));
+    assert.ok(backendDeveloper.mcpServer.allowedTools.includes('coding.check.run'));
+    const exchange = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26' } },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
+    ];
+    const output = execFileSync(backendDeveloper.mcpServer.command, backendDeveloper.mcpServer.args, { encoding: 'utf8', input: exchange.map(message => JSON.stringify(message)).join('\n') + '\n', timeout: 5_000 });
+    const listed = JSON.parse(output.trim().split('\n').find(line => JSON.parse(line).id === 2)).result.tools;
+    assert.ok(listed.some(entry => entry.name === 'coding.check.run'));
+    assert.equal(unqualifiedSpecialist.tools.some(entry => entry.id === 'coding.check.run'), false);
+    assert.equal(unqualifiedSpecialist.mcpServer.allowedTools.includes('coding.check.run'), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('serves an actual task-scoped MCP tools/list and tools/call exchange', async () => {
@@ -274,8 +335,86 @@ test('runs installed Python, C, C++ and Shell check tools on project files', asy
       assert.equal(result.status, 'passed', `${check}: ${JSON.stringify(result)}`);
       assert.equal(result.exitCode, 0);
     }
-    const pytest = await tool(set, 'coding.check.run').execute({ check: 'python-test' });
-    if (pytest.status === 'blocked') assert.equal(pytest.exitCode, null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('runs a real standard-library unittest project when pytest is unavailable', async () => {
+  const root = workspace();
+  try {
+    mkdirSync(join(root, 'tests'));
+    writeFileSync(join(root, 'tests', 'test_engineering.py'), 'import unittest\nclass EngineeringTests(unittest.TestCase):\n    def test_answer(self):\n        self.assertEqual(40 + 2, 42)\n');
+    const set = createCodingTools({ workspaceRoot: root, commandAvailability: command => command !== 'pytest' });
+    const result = await tool(set, 'coding.check.run').execute({ check: 'python-test' });
+    assert.equal(result.status, 'passed', JSON.stringify(result));
+    assert.equal(result.exitCode, 0);
+    assert.ok(result.command.startsWith('/'), 'the runner reports the resolved interpreter path');
+    assert.ok(result.command.endsWith(' -m unittest discover -v -s tests'), result.command);
+    assert.match(result.stdout + result.stderr, /Ran 1 test/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('uses a declared pytest runner when available and reports BLOCKED when it is missing', async () => {
+  const root = workspace();
+  try {
+    writeFileSync(join(root, 'pytest.ini'), '[pytest]\ntestpaths = tests\n');
+    const pytestDir = join(root, '.venv', 'bin');
+    mkdirSync(pytestDir, { recursive: true });
+    const fakePytest = join(pytestDir, 'pytest');
+    writeFileSync(fakePytest, '#!/bin/sh\nprintf "pytest fixture ran\n"\n');
+    chmodSync(fakePytest, 0o755);
+    const available = await tool(createCodingTools({ workspaceRoot: root }), 'coding.check.run').execute({ check: 'python-test' });
+    assert.equal(available.status, 'passed', JSON.stringify(available));
+    assert.match(available.command, /pytest/);
+    assert.match(available.stdout, /pytest fixture ran/);
+
+    const unavailable = await tool(createCodingTools({ workspaceRoot: root, commandAvailability: command => command !== 'pytest' }), 'coding.check.run').execute({ check: 'python-test' });
+    assert.equal(unavailable.status, 'blocked');
+    assert.equal(unavailable.exitCode, null);
+    assert.match(unavailable.stderr, /pytest is unavailable; python-test was not run/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('reviews untracked files in an unborn Git repository without staging or committing them', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'mao-coding-unborn-review-'));
+  let reviewRequest;
+  try {
+    execFileSync('git', ['init', '-q', root]);
+    mkdirSync(join(root, 'tests'));
+    writeFileSync(join(root, 'src.py'), 'def answer():\n    return 42\n');
+    writeFileSync(join(root, 'tests', 'test_engineering.py'), 'import unittest\nclass EngineeringTests(unittest.TestCase):\n    def test_answer(self):\n        self.assertEqual(42, 42)\n');
+    const set = createCodingTools({ workspaceRoot: root, codeReviewPort: { async review(input) { reviewRequest = input; return { status: 'completed', reviewComplete: true, executionId: 'review-test-1', summary: 'Reviewed new project files', findings: [] }; } } });
+    const result = await tool(set, 'coding.review.diff').execute({});
+    assert.equal(result.status, 'completed');
+    assert.match(reviewRequest.diff, /src\.py/);
+    assert.match(reviewRequest.diff, /def answer/);
+    assert.match(reviewRequest.diff, /tests\/test_engineering\.py/);
+    assert.match(reviewRequest.diff, /class EngineeringTests/);
+    assert.throws(() => execFileSync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD']));
+    assert.match(execFileSync('git', ['-C', root, 'status', '--short', '--untracked-files=all'], { encoding: 'utf8' }), /\?\? src\.py/);
+    assert.match(execFileSync('git', ['-C', root, 'status', '--short', '--untracked-files=all'], { encoding: 'utf8' }), /\?\? tests\/test_engineering\.py/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('keeps a new-repository review BLOCKED when no existing CodeReviewPort is available', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'mao-coding-unborn-blocked-review-'));
+  try {
+    execFileSync('git', ['init', '-q', root]);
+    writeFileSync(join(root, 'new.py'), 'secret = "not actually secret"\n');
+    const result = await tool(createCodingTools({ workspaceRoot: root }), 'coding.review.diff').execute({});
+    assert.equal(result.status, 'blocked');
+    assert.match(result.diff.stdout, /secret =/);
+    assert.equal(result.runtimeReview.status, 'blocked');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('does not accept an empty or unconfirmed Runtime review as completed', async () => {
+  const root = workspace();
+  try {
+    writeFileSync(join(root, 'src.js'), 'export const answer = 42;\n');
+    const set = createCodingTools({ workspaceRoot: root, codeReviewPort: { async review() { return { status: 'blocked', message: 'Runtime returned no structured review.' }; } } });
+    const result = await tool(set, 'coding.review.diff').execute({});
+    assert.equal(result.status, 'blocked');
+    assert.equal(result.runtimeReview.status, 'blocked');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -324,7 +463,7 @@ test('reviews the selected diff locally and delegates content review through the
     execFileSync('git', ['-C', root, 'add', 'src.js']);
     execFileSync('git', ['-C', root, 'commit', '-qm', 'add source']);
     writeFileSync(join(root, 'src.js'), 'export function run(value) { return eval(value); }\n');
-    const set = createCodingTools({ workspaceRoot: root, codeReviewPort: { async review(input) { reviewRequest = input; return { summary: 'Runtime review complete', findings: [{ severity: 'high', title: 'Unsafe evaluation' }] }; } } });
+    const set = createCodingTools({ workspaceRoot: root, codeReviewPort: { async review(input) { reviewRequest = input; return { status: 'completed', reviewComplete: true, executionId: 'review-test-2', summary: 'Runtime review complete', findings: [{ severity: 'high', title: 'Unsafe evaluation' }] }; } } });
     const result = await tool(set, 'coding.review.diff').execute({ requirements: ['Do not evaluate user input'], checks: [{ status: 'passed', command: 'node --test' }] });
     assert.equal(result.status, 'completed');
     assert.match(reviewRequest.diff, /eval\(value\)/);
