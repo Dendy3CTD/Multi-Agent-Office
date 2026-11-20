@@ -3,6 +3,7 @@ import MAOTower from "./integration/MAOTower";
 import { useLiveOfficeData } from './live'
 import { createMaoFetchTransport } from './live/transport'
 import type { LiveOfficeState } from './live/types'
+import AgentTerminal from './terminal/AgentTerminal'
 
 const API = '/mao-api'
 function TaskDesk({ liveState }: { liveState: LiveOfficeState }) {
@@ -45,7 +46,7 @@ function initialFixtureMode(): boolean {
   return new URLSearchParams(window.location.search).get("mode") === "fixture";
 }
 
-export default function App() {
+function OfficeApp() {
   const [fixtureMode, setFixtureMode] = useState(initialFixtureMode);
   const transport = useMemo(() => createMaoFetchTransport({ baseUrl: API }), [])
   const liveOptions = useMemo(() => ({ transport: fixtureMode ? undefined : transport, refreshIntervalMs: 15000 }), [fixtureMode, transport])
@@ -59,5 +60,9 @@ export default function App() {
     setFixtureMode(next);
   };
 
-  return <><MAOTower key={fixtureMode ? "development-fixture" : "live-backend"} fixtureMode={fixtureMode} onToggleFixture={toggleMode} liveState={liveState} />{!fixtureMode&&<TaskDesk liveState={liveState}/>}</>;
+  return <><MAOTower key={fixtureMode ? "development-fixture" : "live-backend"} fixtureMode={fixtureMode} onToggleFixture={toggleMode} liveState={liveState} />{!fixtureMode&&<TaskDesk liveState={liveState}/>}<a className="office-terminal-link" href="/terminal">Agent Terminal <span aria-hidden="true">↗</span></a></>;
+}
+
+export default function App() {
+  return window.location.pathname.replace(/\/$/, '') === '/terminal' ? <AgentTerminal /> : <OfficeApp />
 }
