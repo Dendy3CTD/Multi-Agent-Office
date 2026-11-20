@@ -1,0 +1,42 @@
+{
+  "modelId": "esp32-c3-supermini-enclosure",
+  "units": "mm",
+  "parameters": {
+    "board": {
+      "width": 22.5,
+      "length": 18.0,
+      "thickness": 1.6,
+      "mountHoleInset": 2.0,
+      "mountHoleDiameter": 2.4
+    },
+    "enclosure": {
+      "wallThickness": 2.0,
+      "floorThickness": 2.0,
+      "boardClearance": 1.5,
+      "coverClearance": 0.3,
+      "coverThickness": 2.0,
+      "coverSideDepth": 5.0,
+      "baseHeight": 12.0,
+      "standoffHeight": 3.0,
+      "standoffOuterDiameter": 3.2,
+      "screwHoleDiameter": 1.8
+    }
+  },
+  "assumptions": [
+    {
+      "parameter": "board.width/length/thickness",
+      "reason": "Documented test-fixture envelope only; not verified for the user's board revision or clone.",
+      "source": "Stage 06 fixture assumption, 2026-11-20"
+    },
+    {
+      "parameter": "board.mountHoleInset/mountHoleDiameter",
+      "reason": "Mounting-hole locations and existence vary by ESP32-C3 SuperMini board revision; verify against the exact board before manufacture.",
+      "source": "Stage 06 fixture assumption, not a manufacturer drawing"
+    },
+    {
+      "parameter": "coverClearance/fastener fit/printability",
+      "reason": "Clearance is a design input and has not been calibrated for a specific printer, material, or fastener.",
+      "source": "Stage 06 fixture assumption"
+    }
+  ]
+}

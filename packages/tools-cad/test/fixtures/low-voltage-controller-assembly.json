@@ -1,0 +1,56 @@
+{
+  "modelId": "mao-parametric-assembly",
+  "units": "mm",
+  "parameters": {
+    "components": [
+      {
+        "id": "base",
+        "profile": { "type": "rectangle", "widthMm": 29.5, "lengthMm": 25, "positionMm": [0, 0] },
+        "baseHeightMm": 12,
+        "positionMm": [0, 0, 0],
+        "rotationDeg": [0, 0, 0],
+        "tolerancesMm": { "linear": 0.2, "source": "design target; not printer-calibrated" },
+        "features": [
+          { "type": "pocket", "name": "board-cavity", "profile": { "type": "rectangle", "widthMm": 25.5, "lengthMm": 21, "positionMm": [2, 2] }, "planeZmm": 12, "depthMm": 10 },
+          { "type": "pad", "name": "four-board-standoffs", "profile": { "type": "circle-array", "diameterMm": 3.2, "centersMm": [[5.5, 5.5], [24, 5.5], [5.5, 19.5], [24, 19.5]] }, "planeZmm": 2, "heightMm": 3 },
+          { "type": "hole_array", "name": "four-fastener-holes", "diameterMm": 1.8, "centersMm": [[5.5, 5.5], [24, 5.5], [5.5, 19.5], [24, 19.5]], "planeZmm": 5, "depthMm": 5.1 }
+        ]
+      },
+      {
+        "id": "cover",
+        "profile": { "type": "rectangle", "widthMm": 34.1, "lengthMm": 29.6, "positionMm": [-2.3, -2.3] },
+        "baseHeightMm": 7,
+        "positionMm": [0, 0, 7.3],
+        "rotationDeg": [0, 0, 0],
+        "tolerancesMm": { "linear": 0.2, "source": "design target; material and fabrication process unverified" },
+        "features": [
+          { "type": "pocket", "name": "open-cover-cavity", "profile": { "type": "rectangle", "widthMm": 30.1, "lengthMm": 25.6, "positionMm": [-0.3, -0.3] }, "planeZmm": 0, "depthMm": 5, "reversed": true }
+        ]
+      },
+      {
+        "id": "controller-board-reference",
+        "referenceOnly": true,
+        "dimensionsMm": { "width": 22.5, "length": 18, "height": 1.6 },
+        "positionMm": [3.5, 3.5, 5],
+        "rotationDeg": [0, 0, 0],
+        "confidence": "assumed",
+        "source": "Stage 06.2 fixture estimate; no verified manufacturer drawing or exact PCB revision provided",
+        "tolerancesMm": { "linear": 0.2, "source": "not verified" }
+      }
+    ],
+    "nominalParameters": {
+      "wallThicknessMm": { "value": 2, "toleranceMm": 0.2, "source": "fixture design input", "confidence": "assumed" },
+      "coverClearanceMm": { "value": 0.3, "toleranceMm": 0.1, "source": "fixture design input", "confidence": "assumed" },
+      "standoffHeightMm": { "value": 3, "toleranceMm": 0.1, "source": "fixture design input", "confidence": "assumed" }
+    },
+    "clearanceRequirements": [
+      { "components": ["base", "cover"], "nominalGapMm": 0.3, "toleranceMm": 0.1, "source": "fixture cover clearance target", "confidence": "assumed" }
+    ]
+  },
+  "assumptions": [
+    { "parameter": "controller-board dimensions", "reason": "22.5 × 18 × 1.6 mm reference envelope is an unverified fixture estimate, not a manufacturer drawing.", "source": "Stage 06.2 test fixture" },
+    { "parameter": "mounting-hole pattern", "reason": "Four nominal hole centers and diameters are illustrative; verify the exact PCB revision and connectors.", "source": "Stage 06.2 test fixture" },
+    { "parameter": "wall, cover and standoff tolerances", "reason": "Nominal clearances are not calibrated to material, printer, process, fastener or thermal conditions.", "source": "Stage 06.2 design assumptions" },
+    { "parameter": "mechanical strength and thermal behavior", "reason": "No material properties, load case, ventilation model or thermal test is provided.", "source": "Not evaluated" }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "modelId": "mao-parametric-assembly",
+  "units": "mm",
+  "parameters": {
+    "components": [
+      {
+        "id": "filleted-block",
+        "profile": { "type": "rectangle", "widthMm": 20, "lengthMm": 20 },
+        "baseHeightMm": 10,
+        "positionMm": [0, 0, 0],
+        "rotationDeg": [0, 0, 0],
+        "features": [{ "type": "fillet", "name": "rounded-edge", "edgeNames": ["Edge1"], "radiusMm": 0.5 }]
+      },
+      {
+        "id": "chamfered-block",
+        "profile": { "type": "rectangle", "widthMm": 20, "lengthMm": 10 },
+        "baseHeightMm": 10,
+        "positionMm": [35, 0, 0],
+        "rotationDeg": [0, 0, 90],
+        "dimensionsMm": { "width": 10, "length": 20, "height": 10 },
+        "confidence": "verified",
+        "source": "explicit test-fixture dimensions",
+        "tolerancesMm": { "linear": 0.001, "source": "test-fixture tolerance" },
+        "features": [{ "type": "chamfer", "name": "beveled-edge", "edgeNames": ["Edge1"], "sizeMm": 0.5 }]
+      }
+    ]
+  },
+  "assumptions": []
+}

@@ -1,0 +1,27 @@
+{
+  "modelId": "mao-parametric-part",
+  "units": "mm",
+  "parameters": {
+    "parts": [
+      {
+        "id": "mounting-bracket",
+        "base": {
+          "type": "box",
+          "sizeMm": [40, 20, 4],
+          "positionMm": [0, 0, 0]
+        },
+        "features": [
+          {
+            "operation": "union",
+            "shape": { "type": "box", "sizeMm": [4, 20, 18], "positionMm": [0, 0, 4] }
+          },
+          {
+            "operation": "cut",
+            "shape": { "type": "cylinder", "diameterMm": 4, "heightMm": 5, "positionMm": [20, 10, -0.5] }
+          }
+        ]
+      }
+    ]
+  },
+  "assumptions": []
+}

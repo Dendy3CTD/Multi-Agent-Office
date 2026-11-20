@@ -1,0 +1,8 @@
+.world-preview { min-height: 100vh; background: #eee3d3; }
+.world-floor-nav { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; color: #46362d; background: #fffaf2; border-bottom: 1px solid #dbc8b3; }
+.world-floor-nav strong { display: block; font-size: 13px; letter-spacing: .08em; }
+.world-floor-nav small { display: block; margin-top: 3px; color: #9a7c69; font-size: 10px; }
+.world-floor-buttons { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.world-floor-buttons button { min-width: 28px; height: 28px; border: 1px solid #cdb39b; border-radius: 50%; color: #755d4d; background: transparent; cursor: pointer; font: inherit; font-size: 11px; }
+.world-floor-buttons button:hover, .world-floor-buttons button.is-active { color: #fffaf2; background: #ad7157; border-color: #ad7157; }
+@media (max-width: 700px) { .world-floor-nav { align-items: flex-start; flex-direction: column; } .world-floor-buttons { justify-content: flex-start; } }

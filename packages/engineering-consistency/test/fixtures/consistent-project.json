@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "project": { "id": "controller-alpha", "name": "Controller Alpha", "version": "0.3.0", "componentSetRevision": "parts-r1" },
+  "artifacts": [
+    { "id": "schematic", "kind": "schematic", "version": "1.4.0", "sourcePath": "electronics/controller.kicad_sch" },
+    { "id": "bom", "kind": "bom", "version": "1.2.0", "sourcePath": "electronics/controller-bom.csv" },
+    { "id": "firmware", "kind": "firmware", "version": "2.1.0", "sourcePath": "firmware/platformio.ini", "basedOn": { "artifactVersions": { "schematic": "1.4.0" }, "componentSetRevision": "parts-r1", "componentSetDigest": "1e456940a80b7ab201bbaca7135b167ef1977b80e4a4dc8b93f6308c31c821d1" } },
+    { "id": "cad", "kind": "cad", "version": "3.0.0", "sourcePath": "cad/enclosure.FCStd", "basedOn": { "artifactVersions": { "schematic": "1.4.0", "bom": "1.2.0" }, "componentSetRevision": "parts-r1", "componentSetDigest": "1e456940a80b7ab201bbaca7135b167ef1977b80e4a4dc8b93f6308c31c821d1" } },
+    { "id": "assembly", "kind": "assembly-instructions", "version": "1.0.0", "sourcePath": "docs/assembly.md", "basedOn": { "artifactVersions": { "cad": "3.0.0", "bom": "1.2.0" }, "componentSetRevision": "parts-r1", "componentSetDigest": "1e456940a80b7ab201bbaca7135b167ef1977b80e4a4dc8b93f6308c31c821d1" } }
+  ],
+  "schematic": {
+    "sourceArtifactId": "schematic",
+    "powerDomains": [{ "id": "3V3", "nominalVoltageV": 3.3 }],
+    "components": [
+      { "ref": "U1", "partNumber": "ESP32-C3-MINI", "powerRole": "powered", "powerDomainId": "3V3", "operatingVoltageV": { "min": 3.0, "max": 3.6 }, "interfaces": ["GPIO", "I2C"], "physicalDimensionsMm": { "x": 18, "y": 22, "z": 3.5 } },
+      { "ref": "R1", "partNumber": "RES-10K-0603", "powerRole": "passive", "interfaces": [], "physicalDimensionsMm": { "x": 1.6, "y": 0.8, "z": 0.45 } },
+      { "ref": "J1", "partNumber": "CONN-I2C-4P", "powerRole": "passive", "powerDomainId": "3V3", "operatingVoltageV": { "min": 0, "max": 5.5 }, "interfaces": ["I2C"], "physicalDimensionsMm": { "x": 8, "y": 4, "z": 3 } }
+    ],
+    "connections": [{ "id": "i2c-bus-1", "interface": "I2C", "endpoints": ["U1", "J1"] }],
+    "gpioAssignments": [{ "signal": "SDA", "mcuPin": "GPIO8", "direction": "bidirectional" }, { "signal": "SCL", "mcuPin": "GPIO9", "direction": "bidirectional" }]
+  },
+  "bom": {
+    "sourceArtifactId": "bom",
+    "items": [
+      { "references": ["U1"], "partNumber": "ESP32-C3-MINI", "quantity": 1 },
+      { "references": ["R1"], "partNumber": "RES-10K-0603", "quantity": 1 },
+      { "references": ["J1"], "partNumber": "CONN-I2C-4P", "quantity": 1 }
+    ]
+  },
+  "firmware": {
+    "sourceArtifactId": "firmware", "version": "2.1.0", "compatibleSchematicVersion": "1.4.0",
+    "pinConfig": [{ "signal": "SDA", "mcuPin": "GPIO8", "direction": "bidirectional" }, { "signal": "SCL", "mcuPin": "GPIO9", "direction": "bidirectional" }]
+  },
+  "cad": {
+    "sourceArtifactId": "cad",
+    "componentClearances": [
+      { "componentRef": "U1", "componentDimensionsMm": { "x": 18, "y": 22, "z": 3.5 }, "spaceAvailableMm": { "x": 20, "y": 24, "z": 4 } },
+      { "componentRef": "R1", "componentDimensionsMm": { "x": 1.6, "y": 0.8, "z": 0.45 }, "spaceAvailableMm": { "x": 3, "y": 2, "z": 1 } },
+      { "componentRef": "J1", "componentDimensionsMm": { "x": 8, "y": 4, "z": 3 }, "spaceAvailableMm": { "x": 10, "y": 6, "z": 4 } }
+    ]
+  },
+  "assemblyInstructions": { "sourceArtifactId": "assembly" },
+  "policy": { "requiredArtifacts": ["schematic", "bom", "firmware", "cad", "assembly-instructions"], "requiredChecks": ["schematic-bom", "firmware-pinout", "power-and-interfaces", "cad-clearance", "firmware-schematic-version"] }
+}

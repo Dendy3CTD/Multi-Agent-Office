@@ -1,0 +1,7 @@
+(version 1)
+(rule "fixture minimum copper width"
+  (constraint track_width (min 0.25mm))
+)
+(rule "fixture minimum copper clearance"
+  (constraint clearance (min 0.20mm))
+)

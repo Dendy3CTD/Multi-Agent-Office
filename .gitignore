@@ -1,0 +1,25 @@
+node_modules/
+**/dist/
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+mao-hybrid.config.json
+.env
+
+# MAO Hybrid local secrets and state
+.env
+.env.*
+!.env.example
+mao-hybrid.config.json
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.pem
+*.key
+node_modules/
+dist/
+
+# PlatformIO build products for the checked-in test sources
+/packages/tools-electronics/test/fixtures/.pio/
